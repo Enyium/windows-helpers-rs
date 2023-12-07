@@ -1,0 +1,38 @@
+[package]
+name = "windows-helpers"
+version = "0.1.0"
+description = "Helpers for the windows crate"
+categories = ["development-tools::ffi", "rust-patterns"]
+keywords = ["windows"]
+repository = "https://github.com/Enyium/windows-helpers-rs"
+documentation = "https://docs.rs/windows-helpers"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
+
+[dependencies]
+windows = { version = "0.52.0", features = ["Win32_Foundation"] }
+num-traits = "0.2.17"
+
+[dev-dependencies]
+windows = { version = "0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Security_Authorization",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_TextServices",
+    "Win32_Networking_WinSock",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_UI_Shell",
+    "Win32_Globalization",
+] }
+regex = "1.10.2"
