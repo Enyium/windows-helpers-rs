@@ -1,6 +1,6 @@
 [package]
 name = "windows-helpers"
-version = "0.1.1"
+version = "0.1.2"  # Bumps must rather be breaking than not, because `windows` crate version is user's.
 description = "Helpers for the windows crate"
 categories = ["development-tools::ffi", "rust-patterns"]
 keywords = ["windows"]
@@ -14,11 +14,15 @@ default-target = "x86_64-pc-windows-msvc"
 targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
 
 [dependencies]
-windows = { version = "0.52.0", features = ["Win32_Foundation"] }
+# The `windows` crate is regularly updated with breaking SemVer versions, although many things affecting this crate don't change. A version range makes this crate use the version the user uses.
+windows = { version = ">= 0.48, < 1", features = [
+    "Win32_Foundation"
+] }
 num-traits = "0.2.17"
 
 [dev-dependencies]
-windows = { version = "0.52.0", features = [
+#TODO: WITH CARGO AUTHORS: Version here affects version above. This means, this internal dev dependency, when defined with v0.52.0, e.g., makes it impossible for users of this crate to use it with an earlier version of the `windows` crate. (Confirmed with both approaches: when obtaining this crate from crates.io, and when specifying the dependency for this crate with `path = "..."`.)
+windows = { version = ">= 0.48, < 1", features = [
     "Win32_Foundation",
     "Win32_Security_Authorization",
     "Win32_Security",

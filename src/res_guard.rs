@@ -16,6 +16,8 @@ where
     F: FnOnce(R),
 {
     pub fn new(resource: R, free: F) -> Self {
+        //! Should normally not be needed.
+
         Self {
             resource: Some(resource),
             free: Some(free),
@@ -39,7 +41,7 @@ where
         A: FnOnce(&mut R) -> Result<T, E>,
         R: Default,
     {
-        //! For functions that provide the resource over an out-parameter.
+        //! For functions that provide the resource by means of an out-parameter.
 
         let mut resource = R::default();
         acquire(&mut resource)?;
@@ -49,6 +51,16 @@ where
             free: Some(free),
         })
     }
+
+    //TODO: Add these and potentially more (with feature gates, analogous to `windows` crate):
+    //      with_[mut_]acq_and_close_handle()
+    //      with_[mut_]acq_and_free_library()
+    //      with_[mut_]acq_and_global_free()
+    //      with_[mut_]acq_and_local_free()
+    //      with_[mut_]acq_and_heap_free()
+    //      with_[mut_]acq_and_delete_object()
+    //      with_[mut_]acq_and_release_dc()
+    //      with_[mut_]acq_and_destroy_icon()
 }
 
 impl<R, F> Deref for ResGuard<R, F>
