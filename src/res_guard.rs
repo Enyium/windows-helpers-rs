@@ -3,6 +3,8 @@ use std::ops::Deref;
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
+///
+/// For the convenience functions that spare you of having to provide a free-closure, you have to activate the same features for this crate as the `windows` crate documentation specifies for the respective handle type and its containing module.
 pub struct ResGuard<R, F>
 where
     F: FnOnce(R),
@@ -51,17 +53,168 @@ where
             free: Some(free),
         })
     }
-
-    //TODO: Add these and potentially more (with feature gates, analogous to `windows` crate):
-    //      with_[mut_]acq_and_close_handle()
-    //      with_[mut_]acq_and_free_library()
-    //      with_[mut_]acq_and_global_free()
-    //      with_[mut_]acq_and_local_free()
-    //      with_[mut_]acq_and_heap_free()
-    //      with_[mut_]acq_and_delete_object()
-    //      with_[mut_]acq_and_release_dc()
-    //      with_[mut_]acq_and_destroy_icon()
 }
+
+#[allow(unused_macros)]
+macro_rules! impl_with_acq_and_star {
+    ($type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+        impl ResGuard<$type, fn($type)> {
+            pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<$type, fn($type)>, E>
+            where
+                A: FnOnce() -> Result<$type, E>,
+            {
+                Self::with_acquisition(acquire, $free_fn)
+            }
+
+            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<$type, fn($type)>, E>
+            where
+                A: FnOnce(&mut $type) -> Result<T, E>,
+            {
+                Self::with_mut_acquisition(acquire, $free_fn)
+            }
+        }
+    };
+}
+
+#[cfg(feature = "Win32_Foundation")]
+impl_with_acq_and_star!(
+    windows::Win32::Foundation::HANDLE,
+    with_acq_and_close_handle,
+    with_mut_acq_and_close_handle,
+    |handle| {
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HBITMAP,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_bitmap| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_bitmap) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HBRUSH,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_brush| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_brush) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HDC,
+    with_acq_and_delete_dc,
+    with_mut_acq_and_delete_dc,
+    |h_dc| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HFONT,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_font| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_font) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HGDIOBJ,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_gdi_obj| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_gdi_obj) };
+    }
+);
+
+#[cfg(feature = "Win32_Foundation")]
+impl_with_acq_and_star!(
+    windows::Win32::Foundation::HGLOBAL,
+    with_acq_and_global_free,
+    with_mut_acq_and_global_free,
+    |h_global| {
+        let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_UI_WindowsAndMessaging"))]
+impl_with_acq_and_star!(
+    windows::Win32::UI::WindowsAndMessaging::HICON,
+    with_acq_and_destroy_icon,
+    with_mut_acq_and_destroy_icon,
+    |h_icon| {
+        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyIcon(h_icon) };
+    }
+);
+
+#[cfg(feature = "Win32_Foundation")]
+impl_with_acq_and_star!(
+    windows::Win32::Foundation::HLOCAL,
+    with_acq_and_local_free,
+    with_mut_acq_and_local_free,
+    |h_local| {
+        let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_UI_WindowsAndMessaging"))]
+impl_with_acq_and_star!(
+    windows::Win32::UI::WindowsAndMessaging::HMENU,
+    with_acq_and_destroy_menu,
+    with_mut_acq_and_destroy_menu,
+    |h_menu| {
+        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyMenu(h_menu) };
+    }
+);
+
+#[cfg(feature = "Win32_Foundation")]
+impl_with_acq_and_star!(
+    windows::Win32::Foundation::HMODULE,
+    with_acq_and_free_library,
+    with_mut_acq_and_free_library,
+    |h_module| {
+        let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HPALETTE,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_palette| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_palette) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HPEN,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_pen| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_pen) };
+    }
+);
+
+#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
+impl_with_acq_and_star!(
+    windows::Win32::Graphics::Gdi::HRGN,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_rgn| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_rgn) };
+    }
+);
 
 impl<R, F> Deref for ResGuard<R, F>
 where
@@ -111,13 +264,11 @@ mod tests {
     }
 
     #[test]
-    fn with_acquisition() {
-        let event_handle = ResGuard::with_acquisition(
-            || unsafe { CreateEventW(None, true, false, PCWSTR::null()) },
-            |handle| {
-                let _ = unsafe { CloseHandle(handle) };
-            },
-        )
+    #[cfg(feature = "Win32_Foundation")]
+    fn with_acq_and_close_handle() {
+        let event_handle = ResGuard::with_acq_and_close_handle(|| unsafe {
+            CreateEventW(None, true, false, PCWSTR::null())
+        })
         .expect("should be able to create event handle");
 
         assert_eq!(unsafe { SetEvent(*event_handle) }, Ok(()));

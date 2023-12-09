@@ -1,4 +1,5 @@
 {
+    "rust-analyzer.cargo.features": "all",  // May be temporarily deactivated testwise from time to time.
     "rust-analyzer.showUnlinkedFileNotification": false,
     "[rust]": {
         "editor.defaultFormatter": "rust-lang.rust-analyzer",
