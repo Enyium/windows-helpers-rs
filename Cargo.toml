@@ -1,6 +1,6 @@
 [package]
 name = "windows-helpers"
-version = "0.1.3"  # Bumps must rather be breaking than not, because `windows` crate version is user's.
+version = "0.1.4"  # Bumps must rather be breaking than not, because `windows` crate version is user's.
 description = "Helpers for the windows crate"
 categories = ["development-tools::ffi", "rust-patterns"]
 keywords = ["windows"]
@@ -12,6 +12,7 @@ edition = "2021"
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
 targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
+all-features = true
 
 [dependencies]
 # The `windows` crate is regularly updated with breaking SemVer versions, although many things affecting this crate don't change. A version range makes this crate use the version the user uses and reduce the need to hurry after the `windows` crate.
