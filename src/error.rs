@@ -51,7 +51,7 @@ mod tests {
     fn result_ext_from_nonzero_or_win32() {
         let mut two_wide_chars = [u16::MAX, u16::MAX];
         assert_eq!(
-            windows::core::Result::from_nonzero_or_win32(unsafe {
+            Result::from_nonzero_or_win32(unsafe {
                 GetLocaleInfoEx(
                     LOCALE_NAME_INVARIANT,
                     LOCALE_ICURRDIGITS | LOCALE_RETURN_NUMBER,
@@ -61,14 +61,14 @@ mod tests {
             Ok(2)
         );
         let value = unsafe { *two_wide_chars.as_ptr().cast::<u32>() };
-        assert!(value <= 2);
+        assert!(value <= 2); // As per docs on `LOCALE_ICURRDIGITS`.
 
         assert_eq!(
-            windows::core::Result::from_nonzero_or_win32(unsafe {
+            Result::from_nonzero_or_win32(unsafe {
                 GetLocaleInfoEx(
                     LOCALE_NAME_INVARIANT,
                     LOCALE_ICURRDIGITS | LOCALE_RETURN_NUMBER,
-                    Some(&mut [0]),
+                    Some(&mut [0]), // Invalid.
                 )
             }),
             Err(ERROR_INSUFFICIENT_BUFFER.into())
