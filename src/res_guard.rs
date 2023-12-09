@@ -3,8 +3,6 @@ use std::ops::Deref;
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
-///
-/// For the convenience functions that spare you of having to provide a free-closure, you have to activate the same features for this crate as the `windows` crate documentation specifies for the respective handle type and its containing module.
 pub struct ResGuard<R, F>
 where
     F: FnOnce(R),
@@ -55,10 +53,11 @@ where
     }
 }
 
-#[allow(unused_macros)]
 macro_rules! impl_with_acq_and_star {
-    ($type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+    ($feature:expr, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+        #[cfg(feature = $feature)]
         impl ResGuard<$type, fn($type)> {
+            #[doc = concat!("Activate feature `", $feature, "`.")]
             pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<$type, fn($type)>, E>
             where
                 A: FnOnce() -> Result<$type, E>,
@@ -66,6 +65,7 @@ macro_rules! impl_with_acq_and_star {
                 Self::with_acquisition(acquire, $free_fn)
             }
 
+            /// Activate same feature.
             pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<$type, fn($type)>, E>
             where
                 A: FnOnce(&mut $type) -> Result<T, E>,
@@ -76,8 +76,10 @@ macro_rules! impl_with_acq_and_star {
     };
 }
 
-#[cfg(feature = "Win32_Foundation")]
+// Note: The impls require features gating the use of all their inner types, because of the following experience: In v0.48, the `windows` crate had `GlobalFree()` in the module `windows::Win32::System::Memory`, but v0.52 in `windows::Win32::Foundation`. When the impl only had the `Win32_Foundation` feature and the user didn't need `GlobalFree()`, but another free-function also gated with `Win32_Foundation`, there would be an unnecessary error about an incorrectly located function.
+
 impl_with_acq_and_star!(
+    "HANDLE_CloseHandle",
     windows::Win32::Foundation::HANDLE,
     with_acq_and_close_handle,
     with_mut_acq_and_close_handle,
@@ -86,8 +88,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HBITMAP_DeleteObject",
     windows::Win32::Graphics::Gdi::HBITMAP,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -96,8 +98,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HBRUSH_DeleteObject",
     windows::Win32::Graphics::Gdi::HBRUSH,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -106,8 +108,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HDC_DeleteDC",
     windows::Win32::Graphics::Gdi::HDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
@@ -116,8 +118,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HFONT_DeleteObject",
     windows::Win32::Graphics::Gdi::HFONT,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -126,8 +128,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HGDIOBJ_DeleteObject",
     windows::Win32::Graphics::Gdi::HGDIOBJ,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -136,8 +138,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(feature = "Win32_Foundation")]
 impl_with_acq_and_star!(
+    "HGLOBAL_GlobalFree",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
@@ -146,8 +148,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_UI_WindowsAndMessaging"))]
 impl_with_acq_and_star!(
+    "HICON_DestroyIcon",
     windows::Win32::UI::WindowsAndMessaging::HICON,
     with_acq_and_destroy_icon,
     with_mut_acq_and_destroy_icon,
@@ -156,8 +158,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(feature = "Win32_Foundation")]
 impl_with_acq_and_star!(
+    "HLOCAL_LocalFree",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
@@ -166,8 +168,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_UI_WindowsAndMessaging"))]
 impl_with_acq_and_star!(
+    "HMENU_DestroyMenu",
     windows::Win32::UI::WindowsAndMessaging::HMENU,
     with_acq_and_destroy_menu,
     with_mut_acq_and_destroy_menu,
@@ -176,8 +178,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(feature = "Win32_Foundation")]
 impl_with_acq_and_star!(
+    "HMODULE_FreeLibrary",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
@@ -186,8 +188,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HPALETTE_DeleteObject",
     windows::Win32::Graphics::Gdi::HPALETTE,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -196,8 +198,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HPEN_DeleteObject",
     windows::Win32::Graphics::Gdi::HPEN,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -206,8 +208,8 @@ impl_with_acq_and_star!(
     }
 );
 
-#[cfg(all(feature = "Win32_Foundation", feature = "Win32_Graphics_Gdi"))]
 impl_with_acq_and_star!(
+    "HRGN_DeleteObject",
     windows::Win32::Graphics::Gdi::HRGN,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -264,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "Win32_Foundation")]
+    #[cfg(feature = "HANDLE_CloseHandle")]
     fn with_acq_and_close_handle() {
         let event_handle = ResGuard::with_acq_and_close_handle(|| unsafe {
             CreateEventW(None, true, false, PCWSTR::null())
