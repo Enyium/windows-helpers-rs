@@ -1,6 +1,6 @@
 [package]
 name = "windows-helpers"
-version = "0.2.0"  # Bumps must rather be breaking than not, because `windows` crate version is user's.
+version = "0.2.1"  # Bumps must rather be breaking than not, because `windows` crate version is user's.
 description = "Helpers for the windows crate"
 categories = ["development-tools::ffi", "rust-patterns"]
 keywords = ["windows"]

@@ -11,11 +11,13 @@ where
     F: FnMut(bool) -> windows::core::Result<T>,
     T: PartialEq,
 {
-    //! For functions that are to be called with a preparation step, normally to determine the required buffer size. Easier to verify for correctness by the developer than a `loop` approach - so, less straining on the mind and less time-consuming. More versatile than a `for` approach.
+    //! For functions that are to be called with a preparation step, normally to determine the required buffer size.
     //!
-    //! The closure parameter will be `true` for the first call.
+    //! You may find that this is easier to verify for correctness than a `loop` approach - so, less straining on the mind and less time-consuming. It's also more versatile than a `for` approach.
     //!
-    //! If the expectation after the first call isn't met, the `Err` from the closure is returned. Returns `Err` incl. [`HRESULT`] `E_UNEXPECTED`, however, if the first call returned `Ok` and this didn't harmonize with the expectation.
+    //! The closure parameter will be `true` for the first call. It can be called something like `getting_buffer_size`.
+    //!
+    //! If the expectation after the first call isn't met and it returned an `Err`, the function ends with that `Err`. If the first call returned `Ok`, however, and this didn't harmonize with the expectation, `Err` including `HRESULT` `E_UNEXPECTED` is returned.
 
     match first_call_expectation {
         FirstCallExpectation::Ok => {
