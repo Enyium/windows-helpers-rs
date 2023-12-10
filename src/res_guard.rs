@@ -1,18 +1,27 @@
-use std::ops::Deref;
+use std::{marker::PhantomData, ops::Deref};
 
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
-pub struct ResGuard<R, F>
+pub struct ResGuard<R, S, F>
 where
+    R: windows::core::CanInto<S>
+        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
+        + Clone,
+    S: Clone,
     F: FnOnce(R),
 {
     resource: Option<R>,
-    free: Option<F>,
+    _resource_target: PhantomData<S>,
+    free_fn: Option<F>,
 }
 
-impl<R, F> ResGuard<R, F>
+impl<R, S, F> ResGuard<R, S, F>
 where
+    R: windows::core::CanInto<S>
+        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
+        + Clone,
+    S: Clone,
     F: FnOnce(R),
 {
     pub fn new(resource: R, free: F) -> Self {
@@ -20,7 +29,8 @@ where
 
         Self {
             resource: Some(resource),
-            free: Some(free),
+            _resource_target: PhantomData,
+            free_fn: Some(free),
         }
     }
 
@@ -32,7 +42,8 @@ where
 
         Ok(Self {
             resource: Some(acquire()?),
-            free: Some(free),
+            _resource_target: PhantomData,
+            free_fn: Some(free),
         })
     }
 
@@ -48,28 +59,66 @@ where
 
         Ok(Self {
             resource: Some(resource),
-            free: Some(free),
+            _resource_target: PhantomData,
+            free_fn: Some(free),
         })
+    }
+
+    pub fn two_with_mut_acquisition<A, T, E>(
+        acquire_both: A,
+        free_first: F,
+        free_second: F,
+    ) -> Result<(Self, Self), E>
+    where
+        A: FnOnce(&mut R, &mut R) -> Result<T, E>,
+        R: Default,
+    {
+        //! For purpose, see [`Self::two_with_mut_acq_and_close_handle()`].
+
+        let mut first_resource = R::default();
+        let mut second_resource = R::default();
+        acquire_both(&mut first_resource, &mut second_resource)?;
+
+        Ok((
+            Self {
+                resource: Some(first_resource),
+                _resource_target: PhantomData,
+                free_fn: Some(free_first),
+            },
+            Self {
+                resource: Some(second_resource),
+                _resource_target: PhantomData,
+                free_fn: Some(free_second),
+            },
+        ))
     }
 }
 
-macro_rules! impl_with_acq_and_star {
+macro_rules! impl_with_acq_and_free_fn {
     ($feature:expr, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
         #[cfg(feature = $feature)]
-        impl ResGuard<$type, fn($type)> {
-            #[doc = concat!("Activate feature `", $feature, "`.")]
-            pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<$type, fn($type)>, E>
+        impl<R> ResGuard<R, $type, fn(R)>
+        where
+            R: windows::core::CanInto<$type>
+                + windows::core::TypeKind<TypeKind = windows::core::CopyType>
+                + Clone,
+        {
+            pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<R, $type, fn(R)>, E>
             where
-                A: FnOnce() -> Result<$type, E>,
+                A: FnOnce() -> Result<R, E>,
             {
+                #![doc = concat!("Activate feature `", $feature, "`.")]
+
                 Self::with_acquisition(acquire, $free_fn)
             }
 
-            /// Activate same feature.
-            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<$type, fn($type)>, E>
+            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<R, $type, fn(R)>, E>
             where
-                A: FnOnce(&mut $type) -> Result<T, E>,
+                A: FnOnce(&mut R) -> Result<T, E>,
+                R: Default,
             {
+                #![doc = concat!("Activate feature `", $feature, "`.")]
+
                 Self::with_mut_acquisition(acquire, $free_fn)
             }
         }
@@ -78,148 +127,124 @@ macro_rules! impl_with_acq_and_star {
 
 // Note: The impls require features gating the use of all their inner types, because of the following experience: In v0.48, the `windows` crate had `GlobalFree()` in the module `windows::Win32::System::Memory`, but v0.52 in `windows::Win32::Foundation`. When the impl only had the `Win32_Foundation` feature and the user didn't need `GlobalFree()`, but another free-function also gated with `Win32_Foundation`, there would be an unnecessary error about an incorrectly located function.
 
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HANDLE_CloseHandle",
     windows::Win32::Foundation::HANDLE,
     with_acq_and_close_handle,
     with_mut_acq_and_close_handle,
-    |handle| {
-        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle) };
+    |handle_compatible| {
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
-    "HBITMAP_DeleteObject",
-    windows::Win32::Graphics::Gdi::HBITMAP,
-    with_acq_and_delete_object,
-    with_mut_acq_and_delete_object,
-    |h_bitmap| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_bitmap) };
-    }
-);
-
-impl_with_acq_and_star!(
-    "HBRUSH_DeleteObject",
-    windows::Win32::Graphics::Gdi::HBRUSH,
-    with_acq_and_delete_object,
-    with_mut_acq_and_delete_object,
-    |h_brush| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_brush) };
-    }
-);
-
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HDC_DeleteDC",
     windows::Win32::Graphics::Gdi::HDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
-    |h_dc| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc) };
+    |h_dc_compatible| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
-    "HFONT_DeleteObject",
-    windows::Win32::Graphics::Gdi::HFONT,
-    with_acq_and_delete_object,
-    with_mut_acq_and_delete_object,
-    |h_font| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_font) };
-    }
-);
-
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HGDIOBJ_DeleteObject",
     windows::Win32::Graphics::Gdi::HGDIOBJ,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
-    |h_gdi_obj| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_gdi_obj) };
+    |h_gdi_obj_compatible| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_gdi_obj_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HGLOBAL_GlobalFree",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
-    |h_global| {
-        let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global) };
+    |h_global_compatible| {
+        let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HICON_DestroyIcon",
     windows::Win32::UI::WindowsAndMessaging::HICON,
     with_acq_and_destroy_icon,
     with_mut_acq_and_destroy_icon,
-    |h_icon| {
-        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyIcon(h_icon) };
+    |h_icon_compatible| {
+        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyIcon(h_icon_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HLOCAL_LocalFree",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
-    |h_local| {
-        let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local) };
+    |h_local_compatible| {
+        let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HMENU_DestroyMenu",
     windows::Win32::UI::WindowsAndMessaging::HMENU,
     with_acq_and_destroy_menu,
     with_mut_acq_and_destroy_menu,
-    |h_menu| {
-        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyMenu(h_menu) };
+    |h_menu_compatible| {
+        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyMenu(h_menu_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
+impl_with_acq_and_free_fn!(
     "HMODULE_FreeLibrary",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
-    |h_module| {
-        let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module) };
+    |h_module_compatible| {
+        let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module_compatible) };
     }
 );
 
-impl_with_acq_and_star!(
-    "HPALETTE_DeleteObject",
-    windows::Win32::Graphics::Gdi::HPALETTE,
-    with_acq_and_delete_object,
-    with_mut_acq_and_delete_object,
-    |h_palette| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_palette) };
-    }
-);
-
-impl_with_acq_and_star!(
-    "HPEN_DeleteObject",
-    windows::Win32::Graphics::Gdi::HPEN,
-    with_acq_and_delete_object,
-    with_mut_acq_and_delete_object,
-    |h_pen| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_pen) };
-    }
-);
-
-impl_with_acq_and_star!(
-    "HRGN_DeleteObject",
-    windows::Win32::Graphics::Gdi::HRGN,
-    with_acq_and_delete_object,
-    with_mut_acq_and_delete_object,
-    |h_rgn| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_rgn) };
-    }
-);
-
-impl<R, F> Deref for ResGuard<R, F>
+#[cfg(feature = "HANDLE_CloseHandle")]
+impl<R> ResGuard<R, windows::Win32::Foundation::HANDLE, fn(R)>
 where
+    R: windows::core::CanInto<windows::Win32::Foundation::HANDLE>
+        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
+        + Clone,
+{
+    const FREE_FN: fn(R) = |handle_compatible| {
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle_compatible) };
+    };
+
+    pub fn two_with_mut_acq_and_close_handle<A, T, E>(
+        acquire_both: A,
+    ) -> Result<
+        (
+            ResGuard<R, windows::Win32::Foundation::HANDLE, fn(R)>,
+            ResGuard<R, windows::Win32::Foundation::HANDLE, fn(R)>,
+        ),
+        E,
+    >
+    where
+        A: FnOnce(&mut R, &mut R) -> Result<T, E>,
+        R: Default,
+    {
+        //! For a function like `CreatePipe()` that returns two resources at once.
+        //!
+        //! Activate feature `HANDLE_CloseHandle`.
+
+        Self::two_with_mut_acquisition(acquire_both, Self::FREE_FN, Self::FREE_FN)
+    }
+}
+
+impl<R, S, F> Deref for ResGuard<R, S, F>
+where
+    R: windows::core::CanInto<S>
+        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
+        + Clone,
+    S: Clone,
     F: FnOnce(R),
 {
     type Target = R;
@@ -229,12 +254,16 @@ where
     }
 }
 
-impl<R, F> Drop for ResGuard<R, F>
+impl<R, S, F> Drop for ResGuard<R, S, F>
 where
+    R: windows::core::CanInto<S>
+        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
+        + Clone,
+    S: Clone,
     F: FnOnce(R),
 {
     fn drop(&mut self) {
-        self.free.take().unwrap()(self.resource.take().unwrap());
+        self.free_fn.take().unwrap()(self.resource.take().unwrap());
     }
 }
 
@@ -277,23 +306,19 @@ mod tests {
     }
 
     #[test]
-    fn with_mut_acquisition() {
+    fn two_with_mut_acq_and_close_handle() {
         // Acquire pipe handles.
-        let pipe_handles = ResGuard::with_mut_acquisition(
-            |(read_handle, write_handle)| unsafe { CreatePipe(read_handle, write_handle, None, 0) },
-            |(read_handle, write_handle)| {
-                let _ = unsafe { CloseHandle(read_handle) };
-                let _ = unsafe { CloseHandle(write_handle) };
-            },
-        )
-        .expect("should be able to create pipe handles");
-        let (read_handle, write_handle) = *pipe_handles;
+        let (read_handle, write_handle) =
+            ResGuard::two_with_mut_acq_and_close_handle(|read_handle, write_handle| unsafe {
+                CreatePipe(read_handle, write_handle, None, 0)
+            })
+            .expect("should be able to create pipe handles");
 
         // Write.
         let bytes = [123, 45, 67];
         let mut bytes_written = 0;
         assert_eq!(
-            unsafe { WriteFile(write_handle, Some(&bytes), Some(&mut bytes_written), None,) },
+            unsafe { WriteFile(*write_handle, Some(&bytes), Some(&mut bytes_written), None,) },
             Ok(())
         );
         assert_eq!(bytes_written as usize, bytes.len());
@@ -303,7 +328,7 @@ mod tests {
         buffer.resize(bytes.len(), 0);
         let mut bytes_read = 0;
         assert_eq!(
-            unsafe { ReadFile(read_handle, Some(&mut buffer), Some(&mut bytes_read), None) },
+            unsafe { ReadFile(*read_handle, Some(&mut buffer), Some(&mut bytes_read), None) },
             Ok(())
         );
         assert_eq!(bytes_read as usize, buffer.len());
