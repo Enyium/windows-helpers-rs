@@ -1,5 +1,7 @@
 use std::{marker::PhantomData, ops::Deref};
 
+use crate::windows;
+
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
@@ -107,7 +109,7 @@ macro_rules! impl_with_acq_and_free_fn {
             where
                 A: FnOnce() -> Result<R, E>,
             {
-                #![doc = concat!("Activate feature `", $feature, "`.")]
+                #![doc = concat!("Activate feature `windows_<version>_", $feature, "`.")]
 
                 Self::with_acquisition(acquire, $free_fn)
             }
@@ -117,7 +119,7 @@ macro_rules! impl_with_acq_and_free_fn {
                 A: FnOnce(&mut R) -> Result<T, E>,
                 R: Default,
             {
-                #![doc = concat!("Activate feature `", $feature, "`.")]
+                #![doc = concat!("Activate feature `windows_<version>_", $feature, "`.")]
 
                 Self::with_mut_acquisition(acquire, $free_fn)
             }
@@ -137,6 +139,18 @@ impl_with_acq_and_free_fn!(
     }
 );
 
+#[cfg(feature = "windows_v0_48")]
+impl_with_acq_and_free_fn!(
+    "HDC_DeleteDC",
+    windows::Win32::Graphics::Gdi::CreatedHDC,
+    with_acq_and_delete_dc,
+    with_mut_acq_and_delete_dc,
+    |h_dc_compatible| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc_compatible) };
+    }
+);
+
+#[cfg(feature = "windows_v0_52")]
 impl_with_acq_and_free_fn!(
     "HDC_DeleteDC",
     windows::Win32::Graphics::Gdi::HDC,
@@ -163,6 +177,10 @@ impl_with_acq_and_free_fn!(
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
     |h_global_compatible| {
+        #[cfg(feature = "windows_v0_48")]
+        let _ = unsafe { windows::Win32::System::Memory::GlobalFree(h_global_compatible) };
+
+        #[cfg(feature = "windows_v0_52")]
         let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global_compatible) };
     }
 );
@@ -183,6 +201,10 @@ impl_with_acq_and_free_fn!(
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
     |h_local_compatible| {
+        #[cfg(feature = "windows_v0_48")]
+        let _ = unsafe { windows::Win32::System::Memory::LocalFree(h_local_compatible) };
+
+        #[cfg(feature = "windows_v0_52")]
         let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local_compatible) };
     }
 );
@@ -203,6 +225,10 @@ impl_with_acq_and_free_fn!(
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
     |h_module_compatible| {
+        #[cfg(feature = "windows_v0_48")]
+        let _ = unsafe { windows::Win32::System::LibraryLoader::FreeLibrary(h_module_compatible) };
+
+        #[cfg(feature = "windows_v0_52")]
         let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module_compatible) };
     }
 );
@@ -233,7 +259,7 @@ where
     {
         //! For a function like `CreatePipe()` that returns two resources at once.
         //!
-        //! Activate feature `HANDLE_CloseHandle`.
+        //! Activate feature `windows_<version>_HANDLE_CloseHandle`.
 
         Self::two_with_mut_acquisition(acquire_both, Self::FREE_FN, Self::FREE_FN)
     }
@@ -267,9 +293,9 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use windows::{
+    use crate::windows::{
         core::PCWSTR,
         Win32::{
             Foundation::CloseHandle,

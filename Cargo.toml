@@ -1,6 +1,6 @@
 [package]
 name = "windows-helpers"
-version = "0.2.1"  # Bumps must rather be breaking than not, because `windows` crate version is user's.
+version = "0.2.2"
 description = "Helpers for the windows crate"
 categories = ["development-tools::ffi", "rust-patterns"]
 keywords = ["windows"]
@@ -12,28 +12,55 @@ edition = "2021"
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
 targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
-all-features = true
+features = ["windows_latest_compatible_all"]
 
 [dependencies]
-# The `windows` crate is regularly updated with breaking SemVer versions, although many things affecting this crate don't change. A version range makes this crate use the version the user uses and reduce the need to hurry after the `windows` crate.
-windows = { version = ">= 0.48, < 1", features = [
-    "Win32_Foundation",
-] }
+windows_v0_48 = { optional = true, package = "windows", version = "0.48.0", features = ["Win32_Foundation"] }
+windows_v0_52 = { optional = true, package = "windows", version = "0.52.0", features = ["Win32_Foundation"] }
 num-traits = "0.2.17"
 
+# Something like `[target.'cfg(feature = "windows_v0_52")'.dependencies]` (and requiring `windows` with that version, not renaming it) may be more desirable to make this file DRYer and also allow us to specify yet unreleased future versions for forward compatibility. Cargo issue: <https://github.com/rust-lang/cargo/issues/8170> (still open in Dec. 2023).
+
 [features]
-HANDLE_CloseHandle = ["windows/Win32_Foundation"]
-HDC_DeleteDC = ["windows/Win32_Foundation", "windows/Win32_Graphics_Gdi"]
-HGDIOBJ_DeleteObject = ["windows/Win32_Foundation", "windows/Win32_Graphics_Gdi"]
-HGLOBAL_GlobalFree = ["windows/Win32_Foundation"]
-HICON_DestroyIcon = ["windows/Win32_Foundation", "windows/Win32_UI_WindowsAndMessaging"]
-HLOCAL_LocalFree = ["windows/Win32_Foundation"]
-HMENU_DestroyMenu = ["windows/Win32_Foundation", "windows/Win32_UI_WindowsAndMessaging"]
-HMODULE_FreeLibrary = ["windows/Win32_Foundation"]
+HANDLE_CloseHandle = []
+HDC_DeleteDC = []
+HGDIOBJ_DeleteObject = []
+HGLOBAL_GlobalFree = []
+HICON_DestroyIcon = []
+HLOCAL_LocalFree = []
+HMENU_DestroyMenu = []
+HMODULE_FreeLibrary = []
+
+# (For VS Code development, a feature encompassing all features for a `windows` crate version is activated in `/.vscode/settings.json`. Changing the version in it can change the errors shown.)
+
+windows_v0_48_all = ["windows_v0_48", "windows_v0_48_HANDLE_CloseHandle", "windows_v0_48_HDC_DeleteDC", "windows_v0_48_HGDIOBJ_DeleteObject", "windows_v0_48_HGLOBAL_GlobalFree", "windows_v0_48_HICON_DestroyIcon", "windows_v0_48_HLOCAL_LocalFree", "windows_v0_48_HMENU_DestroyMenu", "windows_v0_48_HMODULE_FreeLibrary"]
+windows_v0_48 = ["dep:windows_v0_48"]
+windows_v0_48_HANDLE_CloseHandle = ["HANDLE_CloseHandle", "windows_v0_48/Win32_Foundation"]
+windows_v0_48_HDC_DeleteDC = ["HDC_DeleteDC", "windows_v0_48/Win32_Foundation", "windows_v0_48/Win32_Graphics_Gdi"]
+windows_v0_48_HGDIOBJ_DeleteObject = ["HGDIOBJ_DeleteObject", "windows_v0_48/Win32_Foundation", "windows_v0_48/Win32_Graphics_Gdi"]
+windows_v0_48_HGLOBAL_GlobalFree = ["HGLOBAL_GlobalFree", "windows_v0_48/Win32_System_Memory"]
+windows_v0_48_HICON_DestroyIcon = ["HICON_DestroyIcon", "windows_v0_48/Win32_Foundation", "windows_v0_48/Win32_UI_WindowsAndMessaging"]
+windows_v0_48_HLOCAL_LocalFree = ["HLOCAL_LocalFree", "windows_v0_48/Win32_System_Memory"]
+windows_v0_48_HMENU_DestroyMenu = ["HMENU_DestroyMenu", "windows_v0_48/Win32_Foundation", "windows_v0_48/Win32_UI_WindowsAndMessaging"]
+windows_v0_48_HMODULE_FreeLibrary = ["HMODULE_FreeLibrary", "windows_v0_48/Win32_System_LibraryLoader"]
+
+windows_v0_52_all = ["windows_v0_52", "windows_v0_52_HANDLE_CloseHandle", "windows_v0_52_HDC_DeleteDC", "windows_v0_52_HGDIOBJ_DeleteObject", "windows_v0_52_HGLOBAL_GlobalFree", "windows_v0_52_HICON_DestroyIcon", "windows_v0_52_HLOCAL_LocalFree", "windows_v0_52_HMENU_DestroyMenu", "windows_v0_52_HMODULE_FreeLibrary"]
+windows_v0_52 = ["dep:windows_v0_52"]
+windows_v0_52_HANDLE_CloseHandle = ["HANDLE_CloseHandle", "windows_v0_52/Win32_Foundation"]
+windows_v0_52_HDC_DeleteDC = ["HDC_DeleteDC", "windows_v0_52/Win32_Foundation", "windows_v0_52/Win32_Graphics_Gdi"]
+windows_v0_52_HGDIOBJ_DeleteObject = ["HGDIOBJ_DeleteObject", "windows_v0_52/Win32_Foundation", "windows_v0_52/Win32_Graphics_Gdi"]
+windows_v0_52_HGLOBAL_GlobalFree = ["HGLOBAL_GlobalFree", "windows_v0_52/Win32_Foundation"]
+windows_v0_52_HICON_DestroyIcon = ["HICON_DestroyIcon", "windows_v0_52/Win32_Foundation", "windows_v0_52/Win32_UI_WindowsAndMessaging"]
+windows_v0_52_HLOCAL_LocalFree = ["HLOCAL_LocalFree", "windows_v0_52/Win32_Foundation"]
+windows_v0_52_HMENU_DestroyMenu = ["HMENU_DestroyMenu", "windows_v0_52/Win32_Foundation", "windows_v0_52/Win32_UI_WindowsAndMessaging"]
+windows_v0_52_HMODULE_FreeLibrary = ["HMODULE_FreeLibrary", "windows_v0_52/Win32_Foundation"]
+
+# The latest compatible version should also be specified in the `dev-dependencies` section (in name and `version`).
+windows_latest_compatible_all = ["windows_v0_52_all"]
 
 [dev-dependencies]
-#TODO: WITH CARGO AUTHORS: Version here affects version above. This means, this internal dev dependency, when defined with v0.52.0, e.g., makes it impossible for users of this crate to use it with an earlier version of the `windows` crate. (Confirmed with both approaches: when obtaining this crate from crates.io, and when specifying the dependency for this crate with `path = "..."`.)
-windows = { version = ">= 0.48, < 1", features = [
+# Additional `windows` features for test modules. Only tested with latest version established in this crate.
+windows_v0_52 = { package = "windows", version = "0.52.0", features = [
     "Win32_Foundation",
     "Win32_Security_Authorization",
     "Win32_Security",

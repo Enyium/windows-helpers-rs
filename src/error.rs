@@ -1,5 +1,5 @@
+use crate::windows::{self, core::HRESULT};
 use num_traits::Zero;
-use windows::core::HRESULT;
 
 pub trait ResultExt<T> {
     /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`].
@@ -36,9 +36,9 @@ impl HResultExt for HRESULT {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use windows::Win32::{
+    use crate::windows::Win32::{
         Foundation::{ERROR_INSUFFICIENT_BUFFER, E_FAIL, E_UNEXPECTED, S_FALSE, S_OK},
         Globalization::{
             GetLocaleInfoEx, LOCALE_ICURRDIGITS, LOCALE_NAME_INVARIANT, LOCALE_RETURN_NUMBER,
