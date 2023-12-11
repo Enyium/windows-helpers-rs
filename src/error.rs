@@ -6,6 +6,11 @@ pub trait ResultExt<T> {
     fn from_nonzero_or_win32(t: T) -> windows::core::Result<T>
     where
         T: Zero;
+
+    /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with [`windows::core::Error::from_win32()`].
+    fn from_checked_or_win32<F>(t: T, check: F) -> windows::core::Result<T>
+    where
+        F: FnOnce(&T) -> bool;
 }
 
 impl<T> ResultExt<T> for windows::core::Result<T> {
@@ -17,6 +22,17 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
             Err(windows::core::Error::from_win32())
         } else {
             Ok(t)
+        }
+    }
+
+    fn from_checked_or_win32<F>(t: T, check: F) -> windows::core::Result<T>
+    where
+        F: FnOnce(&T) -> bool,
+    {
+        if check(&t) {
+            Ok(t)
+        } else {
+            Err(windows::core::Error::from_win32())
         }
     }
 }

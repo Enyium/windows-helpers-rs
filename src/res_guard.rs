@@ -112,6 +112,7 @@ macro_rules! impl_with_acq_and_free_fn {
     };
 }
 
+//TODO: With user-facing `windows_v...` features, feature names could mirror those from `windows` again (in the respective version).
 // Note: The impls require features gating the use of all their inner types, because of the following experience: In v0.48, the `windows` crate had `GlobalFree()` in the module `windows::Win32::System::Memory`, but v0.52 in `windows::Win32::Foundation`. When the impl only had the `Win32_Foundation` feature and the user didn't need `GlobalFree()`, but another free-function also gated with `Win32_Foundation`, there would be an unnecessary error about an incorrectly located function.
 
 impl_with_acq_and_free_fn!(
@@ -339,10 +340,15 @@ mod tests {
 
     #[test]
     fn with_acq_and_delete_object() -> windows::core::Result<()> {
+        //! Tests handle type conversion: `HBRUSH` to `HGDIOBJ`.
+
         const BGR: u32 = 0x123456;
 
-        let h_brush = ResGuard::with_acq_and_delete_object(|| unsafe {
-            Ok::<_, windows::core::Error>(CreateSolidBrush(COLORREF(BGR)))
+        let h_brush = ResGuard::with_acq_and_delete_object(|| {
+            //TODO: See <https://github.com/microsoft/windows-rs/issues/2736> ("ok() function for handle types") and <https://github.com/microsoft/win32metadata/issues/1758> ("Functions in windows::Win32::Graphics::Gdi should return Result"). Provide `ok()` function by this crate, otherwise.
+            Result::from_checked_or_win32(unsafe { CreateSolidBrush(COLORREF(BGR)) }, |h_brush| {
+                !h_brush.is_invalid()
+            })
         })?;
 
         let mut log_brush = LOGBRUSH::default();
