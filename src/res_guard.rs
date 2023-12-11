@@ -97,7 +97,7 @@ where
 }
 
 macro_rules! impl_with_acq_and_free_fn {
-    ($feature:expr, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+    ($feature:literal, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
         #[cfg(feature = $feature)]
         impl<R> ResGuard<R, $type, fn(R)>
         where
