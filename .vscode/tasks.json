@@ -4,7 +4,7 @@
         {
             "type": "cargo",
             "command": "test",
-            "args": ["--all-features"],
+            "args": ["--features", "windows_latest_compatible_all"],
             "problemMatcher": [
                 "$rustc"
             ],
