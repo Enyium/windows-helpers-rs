@@ -1,29 +1,19 @@
-use std::{marker::PhantomData, ops::Deref};
-
 use crate::windows;
+use std::ops::Deref;
 
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
-pub struct ResGuard<R, S, F>
+pub struct ResGuard<R, F>
 where
-    R: windows::core::CanInto<S>
-        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
-        + Clone,
-    S: Clone,
     F: FnOnce(R),
 {
     resource: Option<R>,
-    _resource_target: PhantomData<S>,
     free_fn: Option<F>,
 }
 
-impl<R, S, F> ResGuard<R, S, F>
+impl<R, F> ResGuard<R, F>
 where
-    R: windows::core::CanInto<S>
-        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
-        + Clone,
-    S: Clone,
     F: FnOnce(R),
 {
     pub fn new(resource: R, free: F) -> Self {
@@ -31,7 +21,6 @@ where
 
         Self {
             resource: Some(resource),
-            _resource_target: PhantomData,
             free_fn: Some(free),
         }
     }
@@ -44,7 +33,6 @@ where
 
         Ok(Self {
             resource: Some(acquire()?),
-            _resource_target: PhantomData,
             free_fn: Some(free),
         })
     }
@@ -61,7 +49,6 @@ where
 
         Ok(Self {
             resource: Some(resource),
-            _resource_target: PhantomData,
             free_fn: Some(free),
         })
     }
@@ -84,12 +71,10 @@ where
         Ok((
             Self {
                 resource: Some(first_resource),
-                _resource_target: PhantomData,
                 free_fn: Some(free_first),
             },
             Self {
                 resource: Some(second_resource),
-                _resource_target: PhantomData,
                 free_fn: Some(free_second),
             },
         ))
@@ -99,13 +84,13 @@ where
 macro_rules! impl_with_acq_and_free_fn {
     ($feature:literal, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
         #[cfg(feature = $feature)]
-        impl<R> ResGuard<R, $type, fn(R)>
+        impl<R> ResGuard<R, fn(R)>
         where
             R: windows::core::CanInto<$type>
                 + windows::core::TypeKind<TypeKind = windows::core::CopyType>
                 + Clone,
         {
-            pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<R, $type, fn(R)>, E>
+            pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<R, fn(R)>, E>
             where
                 A: FnOnce() -> Result<R, E>,
             {
@@ -114,7 +99,7 @@ macro_rules! impl_with_acq_and_free_fn {
                 Self::with_acquisition(acquire, $free_fn)
             }
 
-            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<R, $type, fn(R)>, E>
+            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<R, fn(R)>, E>
             where
                 A: FnOnce(&mut R) -> Result<T, E>,
                 R: Default,
@@ -234,7 +219,7 @@ impl_with_acq_and_free_fn!(
 );
 
 #[cfg(feature = "HANDLE_CloseHandle")]
-impl<R> ResGuard<R, windows::Win32::Foundation::HANDLE, fn(R)>
+impl<R> ResGuard<R, fn(R)>
 where
     R: windows::core::CanInto<windows::Win32::Foundation::HANDLE>
         + windows::core::TypeKind<TypeKind = windows::core::CopyType>
@@ -246,13 +231,7 @@ where
 
     pub fn two_with_mut_acq_and_close_handle<A, T, E>(
         acquire_both: A,
-    ) -> Result<
-        (
-            ResGuard<R, windows::Win32::Foundation::HANDLE, fn(R)>,
-            ResGuard<R, windows::Win32::Foundation::HANDLE, fn(R)>,
-        ),
-        E,
-    >
+    ) -> Result<(ResGuard<R, fn(R)>, ResGuard<R, fn(R)>), E>
     where
         A: FnOnce(&mut R, &mut R) -> Result<T, E>,
         R: Default,
@@ -265,12 +244,8 @@ where
     }
 }
 
-impl<R, S, F> Deref for ResGuard<R, S, F>
+impl<R, F> Deref for ResGuard<R, F>
 where
-    R: windows::core::CanInto<S>
-        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
-        + Clone,
-    S: Clone,
     F: FnOnce(R),
 {
     type Target = R;
@@ -280,12 +255,8 @@ where
     }
 }
 
-impl<R, S, F> Drop for ResGuard<R, S, F>
+impl<R, F> Drop for ResGuard<R, F>
 where
-    R: windows::core::CanInto<S>
-        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
-        + Clone,
-    S: Clone,
     F: FnOnce(R),
 {
     fn drop(&mut self) {
