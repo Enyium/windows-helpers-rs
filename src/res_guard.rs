@@ -266,17 +266,23 @@ where
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows::{
-        core::PCWSTR,
-        Win32::{
-            Foundation::CloseHandle,
-            Storage::FileSystem::{ReadFile, WriteFile},
-            System::{
-                Pipes::CreatePipe,
-                Threading::{CreateEventW, SetEvent},
+    use crate::{
+        error::ResultExt,
+        windows::{
+            self,
+            core::PCWSTR,
+            Win32::{
+                Foundation::{CloseHandle, COLORREF},
+                Graphics::Gdi::{CreateSolidBrush, GetObjectW, LOGBRUSH},
+                Storage::FileSystem::{ReadFile, WriteFile},
+                System::{
+                    Pipes::CreatePipe,
+                    Threading::{CreateEventW, SetEvent},
+                },
             },
         },
     };
+    use std::{mem, ptr};
 
     use super::ResGuard;
 
@@ -292,7 +298,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "HANDLE_CloseHandle")]
     fn with_acq_and_close_handle() {
         let event_handle = ResGuard::with_acq_and_close_handle(|| unsafe {
             CreateEventW(None, true, false, PCWSTR::null())
@@ -330,5 +335,27 @@ mod tests {
         );
         assert_eq!(bytes_read as usize, buffer.len());
         assert_eq!(buffer, bytes);
+    }
+
+    #[test]
+    fn with_acq_and_delete_object() -> windows::core::Result<()> {
+        const BGR: u32 = 0x123456;
+
+        let h_brush = ResGuard::with_acq_and_delete_object(|| unsafe {
+            Ok::<_, windows::core::Error>(CreateSolidBrush(COLORREF(BGR)))
+        })?;
+
+        let mut log_brush = LOGBRUSH::default();
+        Result::from_nonzero_or_win32(unsafe {
+            GetObjectW(
+                *h_brush,
+                mem::size_of::<LOGBRUSH>() as _,
+                Some(ptr::addr_of_mut!(log_brush).cast()),
+            )
+        })?;
+
+        assert_eq!(log_brush.lbColor.0, BGR);
+
+        Ok(())
     }
 }
