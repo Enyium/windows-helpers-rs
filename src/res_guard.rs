@@ -44,11 +44,21 @@ where
     {
         //! For functions that provide the resource by means of an out-parameter.
 
-        let mut resource = R::default();
-        acquire(&mut resource)?;
+        Self::with_injected_mut_acquisition(R::default(), acquire, free)
+    }
+
+    fn with_injected_mut_acquisition<A, T, E>(
+        mut inited_resource: R,
+        acquire: A,
+        free: F,
+    ) -> Result<Self, E>
+    where
+        A: FnOnce(&mut R) -> Result<T, E>,
+    {
+        acquire(&mut inited_resource)?;
 
         Ok(Self {
-            resource: Some(resource),
+            resource: Some(inited_resource),
             free_fn: Some(free),
         })
     }
@@ -218,6 +228,28 @@ impl_with_acq_and_free_fn!(
         let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module_compatible) };
     }
 );
+
+#[cfg(feature = "HLOCAL_LocalFree")]
+impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
+    pub fn with_mut_pwstr_acq_and_local_free<A, T, E>(acquire: A) -> Result<Self, E>
+    where
+        A: FnOnce(&mut windows::core::PWSTR) -> Result<T, E>,
+    {
+        //! Useful for functions like `ConvertSidToStringSidW()` and `FormatMessageW()`, which allocate for you and are documented to require a call to `LocalFree()`.
+        //!
+        //! Activate feature `windows_<version>_HLOCAL_LocalFree`.
+
+        Self::with_injected_mut_acquisition(windows::core::PWSTR::null(), acquire, |pwstr| {
+            use windows::Win32::Foundation::HLOCAL;
+
+            #[cfg(feature = "windows_v0_48")]
+            let _ = unsafe { windows::Win32::System::Memory::LocalFree(HLOCAL(pwstr.0 as _)) };
+
+            #[cfg(feature = "windows_v0_52")]
+            let _ = unsafe { windows::Win32::Foundation::LocalFree(HLOCAL(pwstr.0.cast())) };
+        })
+    }
+}
 
 #[cfg(feature = "HANDLE_CloseHandle")]
 impl<R> ResGuard<R, fn(R)>

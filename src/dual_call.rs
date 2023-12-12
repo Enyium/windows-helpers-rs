@@ -72,8 +72,8 @@ mod tests {
         core::{w, PCWSTR, PWSTR},
         Win32::{
             Foundation::{
-                CloseHandle, LocalFree, ERROR_BUFFER_OVERFLOW, ERROR_INSUFFICIENT_BUFFER,
-                ERROR_MORE_DATA, E_FAIL, E_POINTER, HLOCAL, S_FALSE, S_OK, WIN32_ERROR,
+                ERROR_BUFFER_OVERFLOW, ERROR_INSUFFICIENT_BUFFER, ERROR_MORE_DATA, E_FAIL,
+                E_POINTER, S_FALSE, S_OK, WIN32_ERROR,
             },
             NetworkManagement::IpHelper::{
                 GetAdaptersAddresses, GET_ADAPTERS_ADDRESSES_FLAGS, IP_ADAPTER_ADDRESSES_LH,
@@ -115,7 +115,7 @@ mod tests {
                 }))
             };
 
-            windows::core::Result::from_nonzero_or_win32(num_ids)
+            Result::from_nonzero_or_win32(num_ids)
         })?;
 
         assert!(num_ids >= 1 && num_ids <= 20 && ids.iter().all(|hkl| !hkl.is_invalid()));
@@ -156,12 +156,9 @@ mod tests {
 
     #[test]
     fn expect_win32_error_insufficient_buffer() -> windows::core::Result<()> {
-        let process_token_handle = ResGuard::with_mut_acquisition(
-            |handle| unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, handle) },
-            |handle| {
-                let _ = unsafe { CloseHandle(handle) };
-            },
-        )?;
+        let process_token_handle = ResGuard::with_mut_acq_and_close_handle(|handle| unsafe {
+            OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, handle)
+        })?;
 
         let mut sid_and_attrs_buffer = Vec::<u8>::new();
         let mut sid_and_attrs_buffer_size = 0;
@@ -182,15 +179,15 @@ mod tests {
             },
         )?;
 
-        let mut pwstr_sid = PWSTR::null();
-        unsafe {
-            ConvertSidToStringSidW(
-                (&*sid_and_attrs_buffer.as_ptr().cast::<SID_AND_ATTRIBUTES>()).Sid,
-                &mut pwstr_sid,
-            )?
+        let string_sid = unsafe {
+            ResGuard::with_mut_pwstr_acq_and_local_free(|pwstr| {
+                ConvertSidToStringSidW(
+                    (&*sid_and_attrs_buffer.as_ptr().cast::<SID_AND_ATTRIBUTES>()).Sid,
+                    pwstr,
+                )
+            })?
+            .to_string()?
         };
-        let string_sid = unsafe { pwstr_sid.to_string()? };
-        let _ = unsafe { LocalFree(HLOCAL(pwstr_sid.0.cast())) };
 
         assert!(Regex::new(r"^S-1-5(?:-\d+)+$")
             .unwrap()
