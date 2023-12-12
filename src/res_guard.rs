@@ -405,13 +405,13 @@ mod tests {
 
         let h_brush = ResGuard::with_acq_and_delete_object(|| {
             //TODO: See <https://github.com/microsoft/windows-rs/issues/2736> ("ok() function for handle types") and <https://github.com/microsoft/win32metadata/issues/1758> ("Functions in windows::Win32::Graphics::Gdi should return Result"). Provide `ok()` function by this crate, otherwise.
-            Result::from_checked_or_win32(unsafe { CreateSolidBrush(COLORREF(BGR)) }, |h_brush| {
+            Result::from_checked_or_e_fail(unsafe { CreateSolidBrush(COLORREF(BGR)) }, |h_brush| {
                 !h_brush.is_invalid()
             })
         })?;
 
         let mut log_brush = LOGBRUSH::default();
-        Result::from_nonzero_or_win32(unsafe {
+        Result::from_nonzero_or_e_fail(unsafe {
             GetObjectW(
                 *h_brush,
                 mem::size_of::<LOGBRUSH>() as _,

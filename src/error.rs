@@ -1,5 +1,6 @@
 use crate::windows::{self, core::HRESULT};
 use num_traits::Zero;
+use windows::Win32::Foundation::E_FAIL;
 
 pub trait ResultExt<T> {
     /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`].
@@ -7,8 +8,22 @@ pub trait ResultExt<T> {
     where
         T: Zero;
 
+    /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with `HRESULT` `E_FAIL`.
+    ///
+    /// To be used with functions that don't offer an error code via `GetLastError()`.
+    fn from_nonzero_or_e_fail(t: T) -> windows::core::Result<T>
+    where
+        T: Zero;
+
     /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with [`windows::core::Error::from_win32()`].
     fn from_checked_or_win32<F>(t: T, check: F) -> windows::core::Result<T>
+    where
+        F: FnOnce(&T) -> bool;
+
+    /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with `HRESULT` `E_FAIL`.
+    ///
+    /// To be used with functions that don't offer an error code via `GetLastError()`.
+    fn from_checked_or_e_fail<F>(t: T, check: F) -> windows::core::Result<T>
     where
         F: FnOnce(&T) -> bool;
 }
@@ -25,6 +40,17 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
         }
     }
 
+    fn from_nonzero_or_e_fail(t: T) -> windows::core::Result<T>
+    where
+        T: Zero,
+    {
+        if t.is_zero() {
+            Err(E_FAIL.into())
+        } else {
+            Ok(t)
+        }
+    }
+
     fn from_checked_or_win32<F>(t: T, check: F) -> windows::core::Result<T>
     where
         F: FnOnce(&T) -> bool,
@@ -33,6 +59,17 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
             Ok(t)
         } else {
             Err(windows::core::Error::from_win32())
+        }
+    }
+
+    fn from_checked_or_e_fail<F>(t: T, check: F) -> windows::core::Result<T>
+    where
+        F: FnOnce(&T) -> bool,
+    {
+        if check(&t) {
+            Ok(t)
+        } else {
+            Err(E_FAIL.into())
         }
     }
 }
