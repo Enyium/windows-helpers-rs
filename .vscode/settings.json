@@ -1,5 +1,6 @@
 {
     // "rust-analyzer.cargo.features": ["windows_v0_48_all"],
+    // "rust-analyzer.cargo.features": ["windows_v0_52_all"],
     "rust-analyzer.cargo.features": ["windows_latest_compatible_all"],
 
     "rust-analyzer.showUnlinkedFileNotification": false,

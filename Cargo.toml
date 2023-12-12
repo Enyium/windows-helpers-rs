@@ -15,6 +15,7 @@ targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
 features = ["windows_latest_compatible_all"]
 
 [dependencies]
+# New `windows` versions must be added or very old versions must be removed below in multiple spots, in `/scripts/verify.ps1` and in `/.vscode/settings.json`.
 windows_v0_48 = { optional = true, package = "windows", version = "0.48.0", features = ["Win32_Foundation"] }
 windows_v0_52 = { optional = true, package = "windows", version = "0.52.0", features = ["Win32_Foundation"] }
 num-traits = "0.2.17"
