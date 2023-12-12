@@ -4,6 +4,8 @@ use std::ops::Deref;
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
+///
+/// For functions ending in Windows API function names (differently cased), you have to activate crate features. First, see the repository's read-me. Then, derive the needed features from the Windows API function and the handle type associated with it.
 pub struct ResGuard<R, F>
 where
     F: FnOnce(R),
@@ -92,8 +94,10 @@ where
 }
 
 macro_rules! impl_with_acq_and_free_fn {
-    ($feature:literal, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
-        #[cfg(feature = $feature)]
+    ($($feature:literal), +, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+        #[cfg(all(
+            $(feature = $feature,)+
+        ))]
         impl<R> ResGuard<R, fn(R)>
         where
             R: windows::core::CanInto<$type>
@@ -104,8 +108,6 @@ macro_rules! impl_with_acq_and_free_fn {
             where
                 A: FnOnce() -> Result<R, E>,
             {
-                #![doc = concat!("Activate feature `windows_<version>_", $feature, "`.")]
-
                 Self::with_acquisition(acquire, $free_fn)
             }
 
@@ -114,19 +116,14 @@ macro_rules! impl_with_acq_and_free_fn {
                 A: FnOnce(&mut R) -> Result<T, E>,
                 R: Default,
             {
-                #![doc = concat!("Activate feature `windows_<version>_", $feature, "`.")]
-
                 Self::with_mut_acquisition(acquire, $free_fn)
             }
         }
     };
 }
 
-//TODO: With user-facing `windows_v...` features, feature names could mirror those from `windows` again (in the respective version).
-// Note: The impls require features gating the use of all their inner types, because of the following experience: In v0.48, the `windows` crate had `GlobalFree()` in the module `windows::Win32::System::Memory`, but v0.52 in `windows::Win32::Foundation`. When the impl only had the `Win32_Foundation` feature and the user didn't need `GlobalFree()`, but another free-function also gated with `Win32_Foundation`, there would be an unnecessary error about an incorrectly located function.
-
 impl_with_acq_and_free_fn!(
-    "HANDLE_CloseHandle",
+    "Win32_Foundation",
     windows::Win32::Foundation::HANDLE,
     with_acq_and_close_handle,
     with_mut_acq_and_close_handle,
@@ -137,7 +134,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "HDC_DeleteDC",
+    "Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::CreatedHDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
@@ -148,7 +145,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_52")]
 impl_with_acq_and_free_fn!(
-    "HDC_DeleteDC",
+    "Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::HDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
@@ -158,7 +155,7 @@ impl_with_acq_and_free_fn!(
 );
 
 impl_with_acq_and_free_fn!(
-    "HGDIOBJ_DeleteObject",
+    "Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::HGDIOBJ,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -167,22 +164,31 @@ impl_with_acq_and_free_fn!(
     }
 );
 
+#[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "HGLOBAL_GlobalFree",
+    "Win32_Foundation",
+    "Win32_System_Memory",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
     |h_global_compatible| {
-        #[cfg(feature = "windows_v0_48")]
         let _ = unsafe { windows::Win32::System::Memory::GlobalFree(h_global_compatible) };
+    }
+);
 
-        #[cfg(feature = "windows_v0_52")]
+#[cfg(feature = "windows_v0_52")]
+impl_with_acq_and_free_fn!(
+    "Win32_Foundation",
+    windows::Win32::Foundation::HGLOBAL,
+    with_acq_and_global_free,
+    with_mut_acq_and_global_free,
+    |h_global_compatible| {
         let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global_compatible) };
     }
 );
 
 impl_with_acq_and_free_fn!(
-    "HICON_DestroyIcon",
+    "Win32_UI_WindowsAndMessaging",
     windows::Win32::UI::WindowsAndMessaging::HICON,
     with_acq_and_destroy_icon,
     with_mut_acq_and_destroy_icon,
@@ -191,22 +197,31 @@ impl_with_acq_and_free_fn!(
     }
 );
 
+#[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "HLOCAL_LocalFree",
+    "Win32_Foundation",
+    "Win32_System_Memory",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
     |h_local_compatible| {
-        #[cfg(feature = "windows_v0_48")]
         let _ = unsafe { windows::Win32::System::Memory::LocalFree(h_local_compatible) };
+    }
+);
 
-        #[cfg(feature = "windows_v0_52")]
+#[cfg(feature = "windows_v0_52")]
+impl_with_acq_and_free_fn!(
+    "Win32_Foundation",
+    windows::Win32::Foundation::HLOCAL,
+    with_acq_and_local_free,
+    with_mut_acq_and_local_free,
+    |h_local_compatible| {
         let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local_compatible) };
     }
 );
 
 impl_with_acq_and_free_fn!(
-    "HMENU_DestroyMenu",
+    "Win32_UI_WindowsAndMessaging",
     windows::Win32::UI::WindowsAndMessaging::HMENU,
     with_acq_and_destroy_menu,
     with_mut_acq_and_destroy_menu,
@@ -215,29 +230,43 @@ impl_with_acq_and_free_fn!(
     }
 );
 
+#[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "HMODULE_FreeLibrary",
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
     |h_module_compatible| {
-        #[cfg(feature = "windows_v0_48")]
         let _ = unsafe { windows::Win32::System::LibraryLoader::FreeLibrary(h_module_compatible) };
+    }
+);
 
-        #[cfg(feature = "windows_v0_52")]
+#[cfg(feature = "windows_v0_52")]
+impl_with_acq_and_free_fn!(
+    "Win32_Foundation",
+    windows::Win32::Foundation::HMODULE,
+    with_acq_and_free_library,
+    with_mut_acq_and_free_library,
+    |h_module_compatible| {
         let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module_compatible) };
     }
 );
 
-#[cfg(feature = "HLOCAL_LocalFree")]
+#[cfg(any(
+    all(
+        feature = "windows_v0_48",
+        feature = "Win32_Foundation",
+        feature = "Win32_System_Memory"
+    ),
+    all(feature = "windows_v0_52", feature = "Win32_Foundation"),
+))]
 impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
     pub fn with_mut_pwstr_acq_and_local_free<A, T, E>(acquire: A) -> Result<Self, E>
     where
         A: FnOnce(&mut windows::core::PWSTR) -> Result<T, E>,
     {
         //! Useful for functions like `ConvertSidToStringSidW()` and `FormatMessageW()`, which allocate for you and are documented to require a call to `LocalFree()`.
-        //!
-        //! Activate feature `windows_<version>_HLOCAL_LocalFree`.
 
         Self::with_injected_mut_acquisition(windows::core::PWSTR::null(), acquire, |pwstr| {
             use windows::Win32::Foundation::HLOCAL;
@@ -251,7 +280,7 @@ impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
     }
 }
 
-#[cfg(feature = "HANDLE_CloseHandle")]
+#[cfg(feature = "Win32_Foundation")]
 impl<R> ResGuard<R, fn(R)>
 where
     R: windows::core::CanInto<windows::Win32::Foundation::HANDLE>
@@ -270,8 +299,6 @@ where
         R: Default,
     {
         //! For a function like `CreatePipe()` that returns two resources at once.
-        //!
-        //! Activate feature `windows_<version>_HANDLE_CloseHandle`.
 
         Self::two_with_mut_acquisition(acquire_both, Self::FREE_FN, Self::FREE_FN)
     }
