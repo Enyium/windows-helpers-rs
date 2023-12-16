@@ -1,19 +1,19 @@
 use crate::windows::{self, core::HRESULT};
-use num_traits::Zero;
 use windows::Win32::Foundation::E_FAIL;
 
+//TODO: More convenience functions for specific handle types, so that `check` closure doesn't have to be provided. Probably traits `Validate`, `Handle` and `Null` for that. Then something like `from_valid_handle_or_...()` (`E_HANDLE`) and `from_valid_or_...()` (`E_FAIL`). See also <https://github.com/microsoft/windows-rs/issues/2736>.
 pub trait ResultExt<T> {
     /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`].
     fn from_nonzero_or_win32(t: T) -> windows::core::Result<T>
     where
-        T: Zero;
+        T: num_traits::Zero;
 
     /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with `HRESULT` `E_FAIL`.
     ///
     /// To be used with functions that don't offer an error code via `GetLastError()`.
     fn from_nonzero_or_e_fail(t: T) -> windows::core::Result<T>
     where
-        T: Zero;
+        T: num_traits::Zero;
 
     /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with [`windows::core::Error::from_win32()`].
     fn from_checked_or_win32<F>(t: T, check: F) -> windows::core::Result<T>
@@ -31,7 +31,7 @@ pub trait ResultExt<T> {
 impl<T> ResultExt<T> for windows::core::Result<T> {
     fn from_nonzero_or_win32(t: T) -> windows::core::Result<T>
     where
-        T: Zero,
+        T: num_traits::Zero,
     {
         if t.is_zero() {
             Err(windows::core::Error::from_win32())
@@ -42,7 +42,7 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
 
     fn from_nonzero_or_e_fail(t: T) -> windows::core::Result<T>
     where
-        T: Zero,
+        T: num_traits::Zero,
     {
         if t.is_zero() {
             Err(E_FAIL.into())

@@ -54,6 +54,7 @@ where
 }
 
 /// Defining the return value of the first call of [`dual_call()`] that is the precondition to continue with the second call.
+#[non_exhaustive]
 pub enum FirstCallExpectation<T> {
     /// Useful with a function like `GetKeyboardLayoutList()`.
     Ok,

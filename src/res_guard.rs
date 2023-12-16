@@ -93,6 +93,7 @@ where
     }
 }
 
+//TODO: Implement handle transmutation myself to get rid of dependency on `CanInto` etc. See <https://github.com/microsoft/windows-rs/issues/2738> ("Can I continue to count on CanInto and friends?"). See also `error.rs`.
 macro_rules! impl_with_acq_and_free_fn {
     ($($feature:literal), +, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
         #[cfg(all(
@@ -404,7 +405,7 @@ mod tests {
         const BGR: u32 = 0x123456;
 
         let h_brush = ResGuard::with_acq_and_delete_object(|| {
-            //TODO: See <https://github.com/microsoft/windows-rs/issues/2736> ("ok() function for handle types") and <https://github.com/microsoft/win32metadata/issues/1758> ("Functions in windows::Win32::Graphics::Gdi should return Result"). Provide `ok()` function by this crate, otherwise.
+            //TODO: Do this myself: See <https://github.com/microsoft/windows-rs/issues/2736> ("ok() function for handle types") and <https://github.com/microsoft/win32metadata/issues/1758> ("Functions in windows::Win32::Graphics::Gdi should return Result"). Provide `ok()` function by this crate, otherwise.
             Result::from_checked_or_e_fail(unsafe { CreateSolidBrush(COLORREF(BGR)) }, |h_brush| {
                 !h_brush.is_invalid()
             })
