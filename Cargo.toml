@@ -23,6 +23,8 @@ num-traits = "0.2.17"
 # Something like `[target.'cfg(feature = "windows_v0_52")'.dependencies]` (and requiring `windows` with that version, not renaming it) may be more desirable to make this file DRYer and also allow us to specify yet unreleased future versions for forward compatibility. Cargo issue: <https://github.com/rust-lang/cargo/issues/8170> (still open in Dec. 2023).
 
 [features]
+win32_app = []
+
 f_Win32_Foundation = []
 f_Win32_Graphics_Gdi = []
 f_Win32_System_LibraryLoader = []
@@ -39,8 +41,15 @@ windows_v0_48_f_Win32_System_LibraryLoader = ["f_Win32_System_LibraryLoader", "w
 windows_v0_48_f_Win32_System_Memory = ["f_Win32_System_Memory", "windows_v0_48/Win32_System_Memory"]
 windows_v0_48_f_Win32_UI_WindowsAndMessaging = ["f_Win32_UI_WindowsAndMessaging", "windows_v0_48/Win32_UI_WindowsAndMessaging"]
 
-windows_v0_52_all = ["windows_v0_52", "windows_v0_52_f_Win32_Foundation", "windows_v0_52_f_Win32_Graphics_Gdi", "windows_v0_52_f_Win32_UI_WindowsAndMessaging"]
+windows_v0_52_all = ["windows_v0_52", "windows_v0_52_win32_app", "windows_v0_52_f_Win32_Foundation", "windows_v0_52_f_Win32_Graphics_Gdi", "windows_v0_52_f_Win32_UI_WindowsAndMessaging"]
 windows_v0_52 = ["dep:windows_v0_52"]
+windows_v0_52_win32_app = [
+    "win32_app",
+    "windows_v0_52/Win32_Foundation",
+    "windows_v0_52/Win32_System_LibraryLoader",
+    "windows_v0_52/Win32_System_Performance",
+    "windows_v0_52/Win32_Graphics_Gdi",
+]
 windows_v0_52_f_Win32_Foundation = ["f_Win32_Foundation", "windows_v0_52/Win32_Foundation"]
 windows_v0_52_f_Win32_Graphics_Gdi = ["f_Win32_Graphics_Gdi", "windows_v0_52/Win32_Graphics_Gdi"]
 windows_v0_52_f_Win32_UI_WindowsAndMessaging = ["f_Win32_UI_WindowsAndMessaging", "windows_v0_52/Win32_UI_WindowsAndMessaging"]

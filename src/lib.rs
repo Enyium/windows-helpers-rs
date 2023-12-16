@@ -1,6 +1,8 @@
 mod dual_call;
 pub mod error;
 mod res_guard;
+#[cfg(feature = "win32_app")]
+pub mod win32_app;
 
 pub use dual_call::dual_call;
 pub use dual_call::FirstCallExpectation;
