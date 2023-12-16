@@ -8,6 +8,5 @@ pub use res_guard::ResGuard;
 
 #[cfg(feature = "windows_v0_48")]
 pub(crate) use windows_v0_48 as windows;
-
 #[cfg(feature = "windows_v0_52")]
 pub(crate) use windows_v0_52 as windows;
