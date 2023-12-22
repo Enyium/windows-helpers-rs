@@ -1,5 +1,5 @@
-use crate::windows::{
-    self,
+use crate::windows;
+use windows::{
     core::HRESULT,
     Win32::Foundation::{E_UNEXPECTED, WIN32_ERROR},
 };
@@ -68,8 +68,13 @@ pub enum FirstCallExpectation<T> {
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows::{
-        self,
+    use super::{dual_call, FirstCallExpectation};
+    use crate::{
+        core::{HResultExt, ResultExt},
+        windows, ResGuard,
+    };
+    use regex::Regex;
+    use windows::{
         core::{w, PCWSTR, PWSTR},
         Win32::{
             Foundation::{
@@ -94,13 +99,6 @@ mod tests {
                 TextServices::HKL,
             },
         },
-    };
-    use regex::Regex;
-
-    use super::{dual_call, FirstCallExpectation};
-    use crate::{
-        error::{HResultExt, ResultExt},
-        ResGuard,
     };
 
     #[test]

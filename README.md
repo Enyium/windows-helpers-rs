@@ -6,7 +6,7 @@ A library crate to make working with the [`windows` crate](https://crates.io/cra
 
 If not instructed to activate more specific features, activate at least the feature that specifies the `windows` crate version you depend on. An example would be the feature name `windows_v0_52`. Not every version is already available (see [`Cargo.toml`](Cargo.toml) to get an idea of the feature names).
 
-If more specific features are needed, their names are built from the previously described feature name and a `windows` crate feature. Example: `windows_v0_52_Win32_Foundation`. Note that the `windows` crate may move types to other modules, while the online documentation only reflects the newest crate structure.
+If more specific features are needed, their names are specifically specified or built from the previously described feature name, the infix `f` for "feature" and a `windows` crate feature. Example: `windows_v0_52_f_Win32_Foundation`. The `windows` crate features needed depend on the types used and their modules. Note that the `windows` crate may move types to other modules, while the online documentation only reflects the newest crate structure.
 
 # License
 

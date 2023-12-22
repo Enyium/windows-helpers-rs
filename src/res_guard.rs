@@ -1,6 +1,14 @@
 use crate::windows;
 use std::ops::Deref;
 
+//TODO: Improve `ResGuard`, so the second type parameter in a struct field like this isn't necessary:
+//      h_icon: Option<ResGuard<HICON, fn(HICON)>>,
+
+//TODO: Add methods like `with_res_and_destroy_icon()` to `ResGuard`. Replacement for code like this:
+//      self.h_icon = Some(ResGuard::new(h_icon, |h_icon| {
+//          let _ = DestroyIcon(h_icon);
+//      }));
+
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
@@ -124,7 +132,7 @@ macro_rules! impl_with_acq_and_free_fn {
 }
 
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
+    "f_Win32_Foundation",
     windows::Win32::Foundation::HANDLE,
     with_acq_and_close_handle,
     with_mut_acq_and_close_handle,
@@ -135,7 +143,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "Win32_Graphics_Gdi",
+    "f_Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::CreatedHDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
@@ -146,7 +154,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_52")]
 impl_with_acq_and_free_fn!(
-    "Win32_Graphics_Gdi",
+    "f_Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::HDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
@@ -156,7 +164,7 @@ impl_with_acq_and_free_fn!(
 );
 
 impl_with_acq_and_free_fn!(
-    "Win32_Graphics_Gdi",
+    "f_Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::HGDIOBJ,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
@@ -167,8 +175,8 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
-    "Win32_System_Memory",
+    "f_Win32_Foundation",
+    "f_Win32_System_Memory",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
@@ -179,7 +187,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_52")]
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
+    "f_Win32_Foundation",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
@@ -189,7 +197,7 @@ impl_with_acq_and_free_fn!(
 );
 
 impl_with_acq_and_free_fn!(
-    "Win32_UI_WindowsAndMessaging",
+    "f_Win32_UI_WindowsAndMessaging",
     windows::Win32::UI::WindowsAndMessaging::HICON,
     with_acq_and_destroy_icon,
     with_mut_acq_and_destroy_icon,
@@ -200,8 +208,8 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
-    "Win32_System_Memory",
+    "f_Win32_Foundation",
+    "f_Win32_System_Memory",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
@@ -212,7 +220,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_52")]
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
+    "f_Win32_Foundation",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
@@ -222,7 +230,7 @@ impl_with_acq_and_free_fn!(
 );
 
 impl_with_acq_and_free_fn!(
-    "Win32_UI_WindowsAndMessaging",
+    "f_Win32_UI_WindowsAndMessaging",
     windows::Win32::UI::WindowsAndMessaging::HMENU,
     with_acq_and_destroy_menu,
     with_mut_acq_and_destroy_menu,
@@ -233,8 +241,8 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_48")]
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
-    "Win32_System_LibraryLoader",
+    "f_Win32_Foundation",
+    "f_Win32_System_LibraryLoader",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
@@ -245,7 +253,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "windows_v0_52")]
 impl_with_acq_and_free_fn!(
-    "Win32_Foundation",
+    "f_Win32_Foundation",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
@@ -257,10 +265,10 @@ impl_with_acq_and_free_fn!(
 #[cfg(any(
     all(
         feature = "windows_v0_48",
-        feature = "Win32_Foundation",
-        feature = "Win32_System_Memory"
+        feature = "f_Win32_Foundation",
+        feature = "f_Win32_System_Memory"
     ),
-    all(feature = "windows_v0_52", feature = "Win32_Foundation"),
+    all(feature = "windows_v0_52", feature = "f_Win32_Foundation"),
 ))]
 impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
     pub fn with_mut_pwstr_acq_and_local_free<A, T, E>(acquire: A) -> Result<Self, E>
@@ -281,7 +289,7 @@ impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
     }
 }
 
-#[cfg(feature = "Win32_Foundation")]
+#[cfg(feature = "f_Win32_Foundation")]
 impl<R> ResGuard<R, fn(R)>
 where
     R: windows::core::CanInto<windows::Win32::Foundation::HANDLE>
@@ -328,7 +336,7 @@ where
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
     use crate::{
-        error::ResultExt,
+        core::ResultExt,
         windows::{
             self,
             core::PCWSTR,

@@ -1,8 +1,21 @@
-use crate::windows::{self, core::HRESULT};
-use windows::Win32::Foundation::E_FAIL;
+use crate::windows;
+use windows::{core::HRESULT, Win32::Foundation::E_FAIL};
 
-//TODO: More convenience functions for specific handle types, so that `check` closure doesn't have to be provided. Probably traits `Validate`, `Handle` and `Null` for that. Then something like `from_valid_handle_or_...()` (`E_HANDLE`) and `from_valid_or_...()` (`E_FAIL`). See also <https://github.com/microsoft/windows-rs/issues/2736>.
+//TODO: More convenience functions for specific handle types, so that `check` closure doesn't have to be provided by the user. Probably traits `Validate`, `Handle` and `Null` for that. Then something like `from_valid_handle_or_...()` (`E_HANDLE`) and `from_valid_or_...()` (`E_FAIL`). See also <https://github.com/microsoft/windows-rs/issues/2736>.
 pub trait ResultExt<T> {
+    /// Returns `Ok(())` or `Err`, based on [`windows::core::Error::from_win32()`].
+    fn from_win32() -> windows::core::Result<()>;
+
+    /// Returns `Err` with [`windows::core::Error::from_win32()`].
+    fn err_from_win32() -> windows::core::Result<T>;
+
+    /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`], if it yields an error code, or zero otherwise.
+    ///
+    /// To be used with functions that communicate valid values as well as errors by a return value of 0 and need an additional call to `GetLastError()` to check whether an error has occurred (e.g., `SetWindowLongPtrW()`). Note that, depending on whether the function calls `SetLastError()` under all circumstances, you may need to precede the call for which you call this function by `SetLastError(ERROR_SUCCESS)`.
+    fn from_nonzero_and_win32(t: T) -> windows::core::Result<T>
+    where
+        T: num_traits::Zero;
+
     /// Passes a non-zero `T` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`].
     fn from_nonzero_or_win32(t: T) -> windows::core::Result<T>
     where
@@ -29,6 +42,35 @@ pub trait ResultExt<T> {
 }
 
 impl<T> ResultExt<T> for windows::core::Result<T> {
+    fn from_win32() -> windows::core::Result<()> {
+        let error = windows::core::Error::from_win32();
+        if error.code().is_ok() {
+            Ok(())
+        } else {
+            Err(error)
+        }
+    }
+
+    fn err_from_win32() -> windows::core::Result<T> {
+        Err(windows::core::Error::from_win32())
+    }
+
+    fn from_nonzero_and_win32(t: T) -> windows::core::Result<T>
+    where
+        T: num_traits::Zero,
+    {
+        if t.is_zero() {
+            let error = windows::core::Error::from_win32();
+            if error.code().is_ok() {
+                Ok(t)
+            } else {
+                Err(error)
+            }
+        } else {
+            Ok(t)
+        }
+    }
+
     fn from_nonzero_or_win32(t: T) -> windows::core::Result<T>
     where
         T: num_traits::Zero,
@@ -91,14 +133,16 @@ impl HResultExt for HRESULT {
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows::Win32::{
+    use crate::{
+        core::{HResultExt, ResultExt},
+        windows,
+    };
+    use windows::Win32::{
         Foundation::{ERROR_INSUFFICIENT_BUFFER, E_FAIL, E_UNEXPECTED, S_FALSE, S_OK},
         Globalization::{
             GetLocaleInfoEx, LOCALE_ICURRDIGITS, LOCALE_NAME_INVARIANT, LOCALE_RETURN_NUMBER,
         },
     };
-
-    use crate::error::{HResultExt, ResultExt};
 
     #[test]
     fn result_ext_from_nonzero_or_win32() {
