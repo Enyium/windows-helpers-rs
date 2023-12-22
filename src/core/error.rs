@@ -1,9 +1,11 @@
-use crate::windows;
-use windows::{core::HRESULT, Win32::Foundation::E_FAIL};
+use crate::{windows, HandleLike, Null};
+use windows::{
+    core::HRESULT,
+    Win32::Foundation::{E_FAIL, E_HANDLE},
+};
 
-//TODO: More convenience functions for specific handle types, so that `check` closure doesn't have to be provided by the user. Probably traits `Validate`, `Handle` and `Null` for that. Then something like `from_valid_handle_or_...()` (`E_HANDLE`) and `from_valid_or_...()` (`E_FAIL`). See also <https://github.com/microsoft/windows-rs/issues/2736>.
 pub trait ResultExt<T> {
-    /// Returns `Ok(())` or `Err`, based on [`windows::core::Error::from_win32()`].
+    /// Returns `Ok(())`, or `Err`, based on [`windows::core::Error::from_win32()`].
     fn from_win32() -> windows::core::Result<()>;
 
     /// Returns `Err` with [`windows::core::Error::from_win32()`].
@@ -28,7 +30,23 @@ pub trait ResultExt<T> {
     where
         T: num_traits::Zero;
 
+    /// Passes a non-null `T` through to an `Ok` value, or, in case of it being null, returns `Err` with `HRESULT` `E_HANDLE`.
+    ///
+    /// To be used with functions like `CreateBitmap()` that return a handle type or null, not offering an error code via `GetLastError()`.
+    fn from_nonnull_or_e_handle(t: T) -> windows::core::Result<T>
+    where
+        T: Null;
+
+    /// Passes a `T`, if successfully validated with `is_invalid()`, through to an `Ok` value, or, in case of it being invalid, returns `Err` with `HRESULT` `E_HANDLE`.
+    ///
+    /// To be used with functions that don't offer an error code via `GetLastError()`, and when there's a need to validate with `is_invalid()`.
+    fn from_valid_or_e_handle(t: T) -> windows::core::Result<T>
+    where
+        T: HandleLike;
+
     /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with [`windows::core::Error::from_win32()`].
+    ///
+    /// Can be used transitionally in new cases, until this crate might offer a more suitable solution.
     fn from_checked_or_win32<F>(t: T, check: F) -> windows::core::Result<T>
     where
         F: FnOnce(&T) -> bool;
@@ -36,6 +54,8 @@ pub trait ResultExt<T> {
     /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with `HRESULT` `E_FAIL`.
     ///
     /// To be used with functions that don't offer an error code via `GetLastError()`.
+    ///
+    /// Can be used transitionally in new cases, until this crate might offer a more suitable solution.
     fn from_checked_or_e_fail<F>(t: T, check: F) -> windows::core::Result<T>
     where
         F: FnOnce(&T) -> bool;
@@ -88,6 +108,28 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
     {
         if t.is_zero() {
             Err(E_FAIL.into())
+        } else {
+            Ok(t)
+        }
+    }
+
+    fn from_nonnull_or_e_handle(t: T) -> windows::core::Result<T>
+    where
+        T: Null,
+    {
+        if t.is_null() {
+            Err(E_HANDLE.into())
+        } else {
+            Ok(t)
+        }
+    }
+
+    fn from_valid_or_e_handle(t: T) -> windows::core::Result<T>
+    where
+        T: HandleLike,
+    {
+        if t.is_invalid() {
+            Err(E_HANDLE.into())
         } else {
             Ok(t)
         }
