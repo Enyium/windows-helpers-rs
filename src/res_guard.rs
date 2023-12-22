@@ -1,4 +1,4 @@
-use crate::windows;
+use crate::{windows, Null};
 use std::ops::Deref;
 
 //TODO: Improve `ResGuard`, so the second type parameter in a struct field like this isn't necessary:
@@ -277,7 +277,7 @@ impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
     {
         //! Useful for functions like `ConvertSidToStringSidW()` and `FormatMessageW()`, which allocate for you and are documented to require a call to `LocalFree()`.
 
-        Self::with_injected_mut_acquisition(windows::core::PWSTR::null(), acquire, |pwstr| {
+        Self::with_injected_mut_acquisition(windows::core::PWSTR::NULL, acquire, |pwstr| {
             use windows::Win32::Foundation::HLOCAL;
 
             #[cfg(feature = "windows_v0_48")]
@@ -350,6 +350,7 @@ mod tests {
                 },
             },
         },
+        Null,
     };
     use std::{mem, ptr};
 
@@ -357,7 +358,7 @@ mod tests {
 
     #[test]
     fn new() {
-        let event_handle = unsafe { CreateEventW(None, true, false, PCWSTR::null()) }
+        let event_handle = unsafe { CreateEventW(None, true, false, PCWSTR::NULL) }
             .expect("should be able to create event handle");
         let event_handle = ResGuard::new(event_handle, |handle| {
             let _ = unsafe { CloseHandle(handle) };
@@ -369,7 +370,7 @@ mod tests {
     #[test]
     fn with_acq_and_close_handle() {
         let event_handle = ResGuard::with_acq_and_close_handle(|| unsafe {
-            CreateEventW(None, true, false, PCWSTR::null())
+            CreateEventW(None, true, false, PCWSTR::NULL)
         })
         .expect("should be able to create event handle");
 

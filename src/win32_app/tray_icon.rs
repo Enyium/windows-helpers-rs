@@ -2,7 +2,7 @@ use crate::{
     bit_manipulation::{build_bit_flag_set, Width32BitPortion},
     core::HStringExt,
     foundation::BoolExt,
-    windows,
+    windows, Null,
 };
 use map_self::MapSelf;
 use std::{
@@ -83,7 +83,7 @@ impl TrayIcon {
                     (window_msg_id.is_some(), NIF_MESSAGE),
                 ]),
             uCallbackMessage: window_msg_id.unwrap_or_default(),
-            hIcon: HICON(0),
+            hIcon: HICON::NULL,
             szTip: [0; 128],
             dwState: NIS_HIDDEN,
             dwStateMask: NIS_HIDDEN.0,
@@ -94,7 +94,7 @@ impl TrayIcon {
             szInfoTitle: [0; 64],
             dwInfoFlags: NOTIFY_ICON_INFOTIP_FLAGS(0),
             guidItem: guid.unwrap_or(GUID::zeroed()),
-            hBalloonIcon: HICON(0),
+            hBalloonIcon: HICON::NULL,
         };
 
         if guid.is_some() {
@@ -220,7 +220,7 @@ impl TrayIcon {
         //! # Safety
         //! See [`Self::set_icon()`].
 
-        self.notify_icon_data.hBalloonIcon = h_icon.unwrap_or_default();
+        self.notify_icon_data.hBalloonIcon = h_icon.unwrap_or(HICON::NULL);
         self.call_modify()
     }
 

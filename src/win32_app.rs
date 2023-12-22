@@ -32,7 +32,7 @@ mod tests {
             msg_loop,
             tray_icon::{BalloonIcon, TrayIcon},
         },
-        windows, ResGuard,
+        windows, Null, ResGuard,
     };
     use anyhow::anyhow;
     use std::rc::Rc;
@@ -85,7 +85,7 @@ mod tests {
                     let mut tray_icon = TrayIcon::with_primary_id(hwnd, Some(Self::TRAY_ICON_MSG))?;
 
                     let tray_h_icon = ResGuard::with_acq_and_destroy_icon(|| unsafe {
-                        LoadIconW(HINSTANCE(0), IDI_APPLICATION)
+                        LoadIconW(HINSTANCE::NULL, IDI_APPLICATION)
                     })?;
                     unsafe { tray_icon.set_icon(*tray_h_icon)? };
 

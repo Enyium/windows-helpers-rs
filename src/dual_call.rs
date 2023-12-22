@@ -71,7 +71,7 @@ mod tests {
     use super::{dual_call, FirstCallExpectation};
     use crate::{
         core::{HResultExt, ResultExt},
-        windows, ResGuard,
+        windows, Null, ResGuard,
     };
     use regex::Regex;
     use windows::{
@@ -133,7 +133,7 @@ mod tests {
                 GetComputerNameExW(
                     ComputerNameNetBIOS,
                     if getting_buffer_size {
-                        PWSTR::null()
+                        PWSTR::NULL
                     } else {
                         buffer.resize(len as _, 0);
                         PWSTR(buffer.as_mut_ptr())
@@ -257,9 +257,9 @@ mod tests {
                         ASSOCF_NONE,
                         ASSOCSTR_EXECUTABLE,
                         w!(".msi"),
-                        PCWSTR::null(),
+                        PCWSTR::NULL,
                         if getting_buffer_size {
-                            PWSTR::null()
+                            PWSTR::NULL
                         } else {
                             buffer.resize(buffer_size as _, 0);
                             PWSTR(buffer.as_mut_ptr())
@@ -300,7 +300,7 @@ mod tests {
                         ASSOCF_NOTRUNCATE,
                         ASSOCSTR_EXECUTABLE,
                         w!(".msi"),
-                        PCWSTR::null(),
+                        PCWSTR::NULL,
                         PWSTR(buffer.as_mut_ptr()),
                         &mut buffer_size,
                     )

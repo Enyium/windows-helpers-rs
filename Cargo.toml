@@ -25,6 +25,8 @@ map-self = "0.1.0"
 # Something like `[target.'cfg(feature = "windows_v0_52")'.dependencies]` (and requiring `windows` with that version, not renaming it) may be more desirable to make this file DRYer and also allow us to specify yet unreleased future versions for forward compatibility. Cargo issue: <https://github.com/rust-lang/cargo/issues/8170> (still open in Dec. 2023).
 
 [features]
+# Note: crates.io generally limits the number of features to 300 (as of Dec. 2023; see https://doc.rust-lang.org/beta/cargo/reference/features.html). It's said, "Exceptions are granted on a case-by-case basis," but it probably shouldn't be demanded from the start for a small crate.
+
 win32_app = []
 
 f_Win32_Foundation = []

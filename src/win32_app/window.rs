@@ -1,4 +1,4 @@
-use crate::{core::ResultExt, windows};
+use crate::{core::ResultExt, windows, Null, Zeroed};
 use std::{cell::Cell, mem};
 use windows::{
     core::{HSTRING, PCWSTR},
@@ -64,7 +64,7 @@ impl<'a> WindowClass<'a> {
             WNDCLASSEXW {
                 cbSize: mem::size_of::<WNDCLASSEXW>() as _,
                 lpfnWndProc: Some(Self::base_wnd_proc),
-                hInstance: unsafe { GetModuleHandleW(PCWSTR::null())? }.into(),
+                hInstance: unsafe { GetModuleHandleW(PCWSTR::NULL)? }.into(),
                 lpszClassName: PCWSTR(HSTRING::from(name).as_ptr()),
                 ..Default::default()
             },
@@ -148,7 +148,7 @@ impl<'a> WindowClass<'a> {
 impl Drop for WindowClass<'_> {
     fn drop(&mut self) {
         unsafe {
-            if let Ok(h_module) = GetModuleHandleW(PCWSTR::null()) {
+            if let Ok(h_module) = GetModuleHandleW(PCWSTR::NULL) {
                 let result = UnregisterClassW(PCWSTR(self.atom as _), h_module);
                 debug_assert!(
                     result.is_ok(),
@@ -193,7 +193,7 @@ impl Window {
             None,
             WINDOW_STYLE(0),
             None,
-            Some((POINT { x: 0, y: 0 }, SIZE { cx: 0, cy: 0 })),
+            Some((POINT::zeroed(), SIZE::zeroed())),
             None,
             None,
         )
@@ -232,15 +232,15 @@ impl Window {
                 CreateWindowExW(
                     ex_style.unwrap_or(WINDOW_EX_STYLE(0)),
                     PCWSTR(class.atom as _),
-                    text.unwrap_or(PCWSTR::null()),
+                    text.unwrap_or(PCWSTR::NULL),
                     style,
                     pos.x,
                     pos.y,
                     size.cx,
                     size.cy,
-                    parent.unwrap_or_default(),
-                    menu.unwrap_or_default(),
-                    GetModuleHandleW(PCWSTR::null())?,
+                    parent.unwrap_or(HWND::NULL),
+                    menu.unwrap_or(HMENU::NULL),
+                    GetModuleHandleW(PCWSTR::NULL)?,
                     None,
                 )
             },
@@ -273,7 +273,7 @@ impl Drop for Window {
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
     use super::{Window, WindowClass};
-    use crate::{foundation::LParamExt, win32_app::msg_loop, windows};
+    use crate::{foundation::LParamExt, win32_app::msg_loop, windows, Null};
     use std::{cell::RefCell, rc::Rc};
     use windows::{
         core::{w, HSTRING, PCWSTR},
@@ -300,7 +300,7 @@ mod tests {
 
                     unsafe {
                         MessageBoxW(
-                            HWND(0),
+                            HWND::NULL,
                             PCWSTR(HSTRING::from(format!("{counter:?}")).as_ptr()),
                             w!("Message Box"),
                             MB_OK,

@@ -1,5 +1,3 @@
-//TODO: Offer trait `Null` for HWND, HICON etc. Maybe offer `zeroed()` for structs like POINT, SIZE etc. (like already existing on `GUID`).
-
 pub mod bit_manipulation;
 pub mod core;
 pub mod foundation;
@@ -7,9 +5,11 @@ pub mod win32_app;
 pub mod wnds_and_msging;
 
 mod dual_call;
+mod empty;
 mod res_guard;
 
 pub use dual_call::*;
+pub use empty::*;
 pub use res_guard::*;
 
 #[cfg(feature = "windows_v0_48")]

@@ -1,6 +1,6 @@
 //! Functions to run a blocking Win32 message loop with `GetMessageW()` etc. Necessary for window procedures, hook callbacks, timer callbacks and more.
 
-use crate::{core::ResultExt, windows};
+use crate::{core::ResultExt, windows, Null};
 use std::cell::Cell;
 use windows::Win32::{
     Foundation::{HWND, LPARAM, WPARAM},
@@ -36,14 +36,14 @@ pub fn run_till_thread_msg() -> windows::core::Result<MSG> {
 
     loop {
         // (`GetMessageW()` calls hook callbacks without returning.)
-        let mut get_msg_retval = unsafe { GetMessageW(&mut msg, HWND(0), 0, 0).0 };
+        let mut get_msg_retval = unsafe { GetMessageW(&mut msg, HWND::NULL, 0, 0).0 };
 
         if get_msg_retval == -1 {
             break Result::err_from_win32();
         } else {
             if let Some(exit_code) = QUIT_NOW_EXIT_CODE.get() {
                 get_msg_retval = 0;
-                msg.hwnd = HWND(0);
+                msg.hwnd = HWND::NULL;
                 msg.message = WM_QUIT;
                 msg.wParam = WPARAM(exit_code as _);
                 msg.lParam = LPARAM(0);
@@ -83,7 +83,7 @@ pub fn quit_now(exit_code: i32) {
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows;
+    use crate::{windows, Null};
     use windows::Win32::{
         Foundation::HWND,
         UI::WindowsAndMessaging::{PostQuitMessage, SetTimer},
@@ -98,7 +98,7 @@ mod tests {
         }
 
         unsafe {
-            SetTimer(HWND(0), 0, 500 /*ms*/, Some(on_timer))
+            SetTimer(HWND::NULL, 0, 500 /*ms*/, Some(on_timer))
         };
         super::run()?;
         println!("after msg loop");
