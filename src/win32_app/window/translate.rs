@@ -1,20 +1,20 @@
-use crate::{high_u16, low_u16, windows, wnds_and_msging::TimerProcExt};
+use crate::{bit_manipulation::Width32BitPortion, windows, wnds_and_msging::TimerProcExt};
 use windows::Win32::{
     Foundation::{HWND, LPARAM, WPARAM},
     UI::WindowsAndMessaging::TIMERPROC,
 };
 
 pub fn translate_command_msg(wparam: WPARAM, lparam: LPARAM) -> CommandMsg {
-    match high_u16!(wparam.0) {
+    match wparam.high_u16() {
         0 => CommandMsg::MenuItem {
-            id: low_u16!(wparam.0),
+            id: wparam.low_u16(),
         },
         1 => CommandMsg::Accelerator {
-            id: low_u16!(wparam.0),
+            id: wparam.low_u16(),
         },
-        wparam_hiword => CommandMsg::ControlMsg {
-            msg_id: wparam_hiword,
-            control_id: low_u16!(wparam.0),
+        wparam_high_u16 => CommandMsg::ControlMsg {
+            msg_id: wparam_high_u16,
+            control_id: wparam.low_u16(),
             control_hwnd: HWND(lparam.0),
         },
     }

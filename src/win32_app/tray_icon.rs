@@ -1,6 +1,8 @@
 use crate::{
-    bit_manipulation::build_bit_flag_set, core::HStringExt, foundation::BoolExt, high_i16,
-    high_u16, low_i16, low_u16, windows,
+    bit_manipulation::{build_bit_flag_set, Width32BitPortion},
+    core::HStringExt,
+    foundation::BoolExt,
+    windows,
 };
 use map_self::MapSelf;
 use std::{
@@ -388,10 +390,10 @@ pub enum SimplifiedTrayIconMsg {
 
 pub fn translate_window_msg(wparam: WPARAM, lparam: LPARAM) -> TrayIconMsg {
     TrayIconMsg {
-        msg_id: low_u16!(lparam.0) as _,
-        icon_id: high_u16!(lparam.0),
-        x: low_i16!(wparam.0),
-        y: high_i16!(wparam.0),
+        msg_id: lparam.low_u16() as _, // `u32` makes comparisons nicer.
+        icon_id: lparam.high_u16(),
+        x: wparam.low_i16(),
+        y: wparam.high_i16(),
     }
 }
 
