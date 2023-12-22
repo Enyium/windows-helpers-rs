@@ -15,10 +15,12 @@ targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
 features = ["windows_latest_compatible_all"]
 
 [dependencies]
-# New `windows` versions must be added or very old versions must be removed below in multiple spots, in `/scripts/verify.ps1` and in `/.vscode/settings.json`.
+# New `windows` versions must be added or very old versions must be removed below in multiple spots, in `lib.rs`, in `/scripts/verify.ps1` and in `/.vscode/settings.json`.
 windows_v0_48 = { optional = true, package = "windows", version = "0.48.0", features = ["Win32_Foundation"] }  # Published on 2023-03-31.
 windows_v0_52 = { optional = true, package = "windows", version = "0.52.0", features = ["Win32_Foundation"] }  # Published on 2023-11-15.
+
 num-traits = "0.2.17"
+map-self = "0.1.0"
 
 # Something like `[target.'cfg(feature = "windows_v0_52")'.dependencies]` (and requiring `windows` with that version, not renaming it) may be more desirable to make this file DRYer and also allow us to specify yet unreleased future versions for forward compatibility. Cargo issue: <https://github.com/rust-lang/cargo/issues/8170> (still open in Dec. 2023).
 
@@ -46,9 +48,12 @@ windows_v0_52 = ["dep:windows_v0_52"]
 windows_v0_52_win32_app = [
     "win32_app",
     "windows_v0_52/Win32_Foundation",
+    "windows_v0_52/Win32_Graphics_Gdi",
     "windows_v0_52/Win32_System_LibraryLoader",
     "windows_v0_52/Win32_System_Performance",
-    "windows_v0_52/Win32_Graphics_Gdi",
+    "windows_v0_52/Win32_UI_Input_KeyboardAndMouse",
+    "windows_v0_52/Win32_UI_Shell",
+    "windows_v0_52/Win32_UI_WindowsAndMessaging",
 ]
 windows_v0_52_f_Win32_Foundation = ["f_Win32_Foundation", "windows_v0_52/Win32_Foundation"]
 windows_v0_52_f_Win32_Graphics_Gdi = ["f_Win32_Graphics_Gdi", "windows_v0_52/Win32_Graphics_Gdi"]
@@ -77,3 +82,4 @@ windows_v0_52 = { package = "windows", version = "0.52.0", features = [
     "Win32_Globalization",
 ] }
 regex = "1.10.2"
+anyhow = "1.0.75"

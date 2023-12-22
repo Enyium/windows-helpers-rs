@@ -1,6 +1,14 @@
 use crate::windows;
 use std::ops::Deref;
 
+//TODO: Improve `ResGuard`, so the second type parameter in a struct field like this isn't necessary:
+//      h_icon: Option<ResGuard<HICON, fn(HICON)>>,
+
+//TODO: Add methods like `with_res_and_destroy_icon()` to `ResGuard`. Replacement for code like this:
+//      self.h_icon = Some(ResGuard::new(h_icon, |h_icon| {
+//          let _ = DestroyIcon(h_icon);
+//      }));
+
 /// Holds a resource and a free-closure that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
@@ -328,7 +336,7 @@ where
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
     use crate::{
-        error::ResultExt,
+        core::ResultExt,
         windows::{
             self,
             core::PCWSTR,

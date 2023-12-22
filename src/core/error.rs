@@ -1,7 +1,7 @@
 use crate::windows;
 use windows::{core::HRESULT, Win32::Foundation::E_FAIL};
 
-//TODO: More convenience functions for specific handle types, so that `check` closure doesn't have to be provided. Probably traits `Validate`, `Handle` and `Null` for that. Then something like `from_valid_handle_or_...()` (`E_HANDLE`) and `from_valid_or_...()` (`E_FAIL`). See also <https://github.com/microsoft/windows-rs/issues/2736>.
+//TODO: More convenience functions for specific handle types, so that `check` closure doesn't have to be provided by the user. Probably traits `Validate`, `Handle` and `Null` for that. Then something like `from_valid_handle_or_...()` (`E_HANDLE`) and `from_valid_or_...()` (`E_FAIL`). See also <https://github.com/microsoft/windows-rs/issues/2736>.
 pub trait ResultExt<T> {
     /// Returns `Ok(())` or `Err`, based on [`windows::core::Error::from_win32()`].
     fn from_win32() -> windows::core::Result<()>;
@@ -133,15 +133,16 @@ impl HResultExt for HRESULT {
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows;
+    use crate::{
+        core::{HResultExt, ResultExt},
+        windows,
+    };
     use windows::Win32::{
         Foundation::{ERROR_INSUFFICIENT_BUFFER, E_FAIL, E_UNEXPECTED, S_FALSE, S_OK},
         Globalization::{
             GetLocaleInfoEx, LOCALE_ICURRDIGITS, LOCALE_NAME_INVARIANT, LOCALE_RETURN_NUMBER,
         },
     };
-
-    use crate::error::{HResultExt, ResultExt};
 
     #[test]
     fn result_ext_from_nonzero_or_win32() {

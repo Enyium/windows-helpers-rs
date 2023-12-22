@@ -1,12 +1,18 @@
-//! Functions to run a blocking Win32 message loop with `GetMessageW()` etc. Necessary for window procedures, timer callbacks and hook callbacks.
+//! Functions to run a blocking Win32 message loop with `GetMessageW()` etc. Necessary for window procedures, hook callbacks, timer callbacks and more.
 
-use crate::windows;
+use crate::{core::ResultExt, windows};
+use std::cell::Cell;
 use windows::Win32::{
-    Foundation::HWND,
-    UI::WindowsAndMessaging::{DispatchMessageW, GetMessageW, TranslateMessage, MSG, WM_QUIT},
+    Foundation::{HWND, LPARAM, WPARAM},
+    UI::WindowsAndMessaging::{
+        DispatchMessageW, GetMessageW, PostQuitMessage, TranslateMessage, MSG, WM_QUIT,
+    },
 };
 
-use crate::error::ResultExt;
+thread_local! {
+    /// The exit code set with [`quit_now()`]. Same data type as with `PostQuitMessage()`.
+    static QUIT_NOW_EXIT_CODE: Cell<Option<i32>> = const { Cell::new(None) };
+}
 
 pub fn run() -> windows::core::Result<usize> {
     //! Runs a message loop, ignoring custom thread messages.
@@ -30,16 +36,26 @@ pub fn run_till_thread_msg() -> windows::core::Result<MSG> {
 
     loop {
         // (`GetMessageW()` calls hook callbacks without returning.)
-        match unsafe { GetMessageW(&mut msg, HWND(0), 0, 0).0 } {
-            -1 => break Result::err_from_win32(),
+        let mut get_msg_retval = unsafe { GetMessageW(&mut msg, HWND(0), 0, 0).0 };
 
-            // Received `WM_QUIT` thread message. Caller must check `msg.message` against `WM_QUIT`.
-            // (`GetMessageW()` return value is checked instead of treating `WM_QUIT` like all thread messages, in case abusive behavior caused `msg.hwnd` to be non-zero, which is possible via `PostMessageW()`.)
-            0 => break Ok(msg),
+        if get_msg_retval == -1 {
+            break Result::err_from_win32();
+        } else {
+            if let Some(exit_code) = QUIT_NOW_EXIT_CODE.get() {
+                get_msg_retval = 0;
+                msg.hwnd = HWND(0);
+                msg.message = WM_QUIT;
+                msg.wParam = WPARAM(exit_code as _);
+                msg.lParam = LPARAM(0);
+            }
 
-            _ => {
+            if get_msg_retval == 0 {
+                // Received `WM_QUIT` thread message. Caller must check `msg.message` against `WM_QUIT`.
+                // (`GetMessageW()` return value is checked instead of treating `WM_QUIT` like all thread messages, in case abusive behavior caused `msg.hwnd` to be non-zero, which is possible via `PostMessageW()`.)
+                break Ok(msg);
+            } else {
                 // Propagate window message to window procedure.
-                // As confirmed by a test, `DispatchMessageW()` also calls the timer callback on `WM_TIMER` when `msg.hwnd` is 0. Example code also does it this way. (https://learn.microsoft.com/en-us/windows/win32/winmsg/using-messages-and-message-queues) So, the calls are just made for all thread messages. Custom thread messages are ignored by them. (Docs: "DispatchMessage will call the TimerProc callback function specified in the call to the SetTimer function used to install the timer." [https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-timer])
+                // As confirmed by a test, `DispatchMessageW()` also calls the timer callback on `WM_TIMER` when `msg.hwnd` is 0. Official example code also does it this way. (https://learn.microsoft.com/en-us/windows/win32/winmsg/using-messages-and-message-queues) So, the calls are just made for all thread messages. Custom thread messages are ignored by them. (Docs: "DispatchMessage will call the TimerProc callback function specified in the call to the SetTimer function used to install the timer." [https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-timer])
                 unsafe {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);
@@ -52,6 +68,17 @@ pub fn run_till_thread_msg() -> windows::core::Result<MSG> {
             }
         }
     }
+}
+
+pub fn quit_now(exit_code: i32) {
+    //! Causes the message loop to quit as soon as possible.
+    //!
+    //! Can be used in case of exceptional errors. Note that this function doesn't have the never return type (`!`).
+    //!
+    //! The function saves the exit code in thread-local storage and posts a message. The very next message that the message loop retrieves will then be changed to a `WM_QUIT` message with that exit code, which causes the loop to return.
+
+    QUIT_NOW_EXIT_CODE.set(Some(exit_code));
+    unsafe { PostQuitMessage(exit_code) };
 }
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]

@@ -1,4 +1,4 @@
-use crate::windows;
+use crate::{core::ResultExt, windows};
 use std::{cell::Cell, mem};
 use windows::{
     core::{HSTRING, PCWSTR},
@@ -6,81 +6,104 @@ use windows::{
         Foundation::{SetLastError, ERROR_SUCCESS, HWND, LPARAM, LRESULT, POINT, SIZE, WPARAM},
         System::{LibraryLoader::GetModuleHandleW, Performance::QueryPerformanceCounter},
         UI::WindowsAndMessaging::{
-            CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, RegisterClassExW,
-            SetWindowLongPtrW, UnregisterClassW, CW_USEDEFAULT, GWLP_USERDATA, HMENU, HWND_MESSAGE,
-            WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSEXW,
+            CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, IsWindow,
+            RegisterClassExW, SetWindowLongPtrW, UnregisterClassW, CW_USEDEFAULT, GWLP_USERDATA,
+            HMENU, HWND_MESSAGE, WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSEXW,
         },
     },
 };
 
-use crate::error::ResultExt;
+mod translate;
+
+pub use translate::*;
 
 thread_local! {
     static NEXT_WINDOW_USER_DATA_ON_INIT: Cell<isize> = const { Cell::new(0) };
 }
 
-/// The window procedure of a class that you must define.
-///
-/// Parameters without types: `hwnd, msg_id, wparam, lparam`
-/// Parameters with types: `hwnd: HWND, msg_id: u32, wparam: WPARAM, lparam: LPARAM`
-///
-/// Return `None` to cause `DefWindowProcW()` being called and its return value being used. You sometimes should also call it yourself when handling certain messages and returning `Some(...)`.
-pub type WindowProcedure<'a> = dyn FnMut(HWND, u32, WPARAM, LPARAM) -> Option<LRESULT> + 'a;
+// For trait bounds in this API.
+pub trait WndProc: FnMut(HWND, u32, WPARAM, LPARAM) -> Option<LRESULT> {}
+
+// For accepting any matching closure type where the trait bound is required.
+impl<F> WndProc for F where F: FnMut(HWND, u32, WPARAM, LPARAM) -> Option<LRESULT> {}
 
 /// A window class registered with `RegisterClassExW()`, containing a window procedure closure. Necessary for creating windows.
 ///
-/// Don't use `Get...`/`SetWindowLongPtrW(...GWLP_USERDATA...)` on a window created from an instance of this struct, because it stores internal data necessary for the struct to function.
+/// - Don't drop it before any [`Window`]s created with it, because this tries to unregister the class (struct field order is relevant).
+/// - Don't use `Get...`/`SetWindowLongPtrW(...GWLP_USERDATA...)` on a window created from an instance of this struct, because it stores internal data necessary for the struct to function.
 pub struct WindowClass<'a> {
     atom: u16,
-    /// Converted with `Box::into_raw()`.
-    window_procedure_ptr: *mut Box<WindowProcedure<'a>>,
+    /// Double-`Box`, converted with `Box::into_raw()` (to get thin pointer).
+    wnd_proc_ptr: *mut Box<dyn WndProc + 'a>,
 }
 
 impl<'a> WindowClass<'a> {
-    pub fn new(window_procedure: Box<WindowProcedure<'a>>) -> windows::core::Result<Self> {
-        let mut precise_time = 0;
-        unsafe { QueryPerformanceCounter(&mut precise_time)? };
+    pub fn new<F>(wnd_proc: F) -> windows::core::Result<Self>
+    where
+        F: WndProc + 'a,
+    {
+        //! Creates a new class with a name from [`Self::make_name()`].
+        //!
+        //! Pass the window procedure of the class that you implement. Its parameters are:
+        //!
+        //! - Without types: `hwnd, msg_id, wparam, lparam`
+        //! - With types: `hwnd: HWND, msg_id: u32, wparam: WPARAM, lparam: LPARAM`
+        //!
+        //! Return `None` from the procedure to cause `DefWindowProcW()` being called and its return value being used. You sometimes should also call it yourself when handling certain messages and returning `Some(...)`.
+        //!
+        //! Note that some functions like `DestroyWindow()` and `TrackPopupMenu()` synchronously cause the window procedure to be called again during their calls. This means that closing over an `Rc<RefCell<...>>` and calling `borrow_mut()` to call your actual procedure implementation (can be a method with self parameter) will cause a borrowing panic. Using `Rc<ReentrantRefCell<...>>` instead solves this.
 
-        Self::with_name(&format!("unnamed_{precise_time:x}"), window_procedure)
+        Self::with_name(&Self::make_name()?, wnd_proc)
     }
 
-    pub fn with_name(
-        name: &str,
-        window_procedure: Box<WindowProcedure<'a>>,
-    ) -> windows::core::Result<Self> {
+    pub fn with_name<F>(name: &str, wnd_proc: F) -> windows::core::Result<Self>
+    where
+        F: WndProc + 'a,
+    {
         Self::with_details(
             WNDCLASSEXW {
                 cbSize: mem::size_of::<WNDCLASSEXW>() as _,
-                lpfnWndProc: Some(Self::base_window_procedure),
+                lpfnWndProc: Some(Self::base_wnd_proc),
                 hInstance: unsafe { GetModuleHandleW(PCWSTR::null())? }.into(),
                 lpszClassName: PCWSTR(HSTRING::from(name).as_ptr()),
                 ..Default::default()
             },
-            window_procedure,
+            wnd_proc,
         )
     }
 
-    pub fn with_details(
+    pub fn with_details<F>(
         mut wnd_class_ex: WNDCLASSEXW,
-        window_procedure: Box<WindowProcedure<'a>>,
-    ) -> windows::core::Result<Self> {
+        wnd_proc: F,
+    ) -> windows::core::Result<Self>
+    where
+        F: WndProc + 'a,
+    {
         //! The `lpfnWndProc` field will be overwritten.
 
-        wnd_class_ex.lpfnWndProc = Some(Self::base_window_procedure);
-        let atom = Result::from_nonzero_or_win32(unsafe { RegisterClassExW(&wnd_class_ex) })?;
+        wnd_class_ex.lpfnWndProc = Some(Self::base_wnd_proc);
 
         Ok(Self {
-            atom,
+            atom: Result::from_nonzero_or_win32(unsafe { RegisterClassExW(&wnd_class_ex) })?,
             // Double indirection to get thin pointer.
-            window_procedure_ptr: Box::into_raw(Box::new(window_procedure)),
+            wnd_proc_ptr: Box::into_raw(Box::new(Box::new(wnd_proc))),
         })
+    }
+
+    pub fn make_name() -> windows::core::Result<String> {
+        //! Generates a time-based class name.
+
+        let mut precise_time = 0;
+        unsafe { QueryPerformanceCounter(&mut precise_time)? };
+
+        Ok(format!("unnamed_{precise_time:x}"))
     }
 
     pub fn atom(&self) -> u16 {
         self.atom
     }
 
-    extern "system" fn base_window_procedure(
+    extern "system" fn base_wnd_proc(
         hwnd: HWND,
         msg_id: u32,
         wparam: WPARAM,
@@ -110,9 +133,10 @@ impl<'a> WindowClass<'a> {
         };
 
         // Call window procedure.
-        let window_procedure = unsafe { &mut *(user_data as *mut Box<WindowProcedure>) };
+        // (Outer box was dissolved into raw pointer, whose data is simply referenced here. The `Box` you see is the inner `Box`.)
+        let wnd_proc = unsafe { &mut *(user_data as *mut Box<dyn WndProc>) };
 
-        if let Some(lresult) = window_procedure(hwnd, msg_id, wparam, lparam) {
+        if let Some(lresult) = wnd_proc(hwnd, msg_id, wparam, lparam) {
             lresult
         } else {
             // Call default message handler.
@@ -125,14 +149,21 @@ impl Drop for WindowClass<'_> {
     fn drop(&mut self) {
         unsafe {
             if let Ok(h_module) = GetModuleHandleW(PCWSTR::null()) {
-                let _ = UnregisterClassW(PCWSTR(self.atom as _), h_module);
+                let result = UnregisterClassW(PCWSTR(self.atom as _), h_module);
+                debug_assert!(
+                    result.is_ok(),
+                    "couldn't unregister window class (did you adhere to proper drop order?): {result:?}"
+                );
             }
 
-            drop(Box::from_raw(self.window_procedure_ptr));
+            drop(Box::from_raw(self.wnd_proc_ptr));
         }
     }
 }
 
+/// A window created with a [`WindowClass`].
+///
+/// The first calls of the window procedure are made during the constructor call; then during the message loop.
 pub struct Window {
     hwnd: HWND,
 }
@@ -155,9 +186,17 @@ impl Window {
     }
 
     pub fn new_invisible(class: &WindowClass) -> windows::core::Result<Self> {
-        //! Meant for windows that stay invisible. Necessary instead of a message-only window, if you want to receive broadcast messages like `WM_ENDSESSION`.
+        //! Meant for windows that stay invisible. Necessary instead of a message-only window, if you want to receive broadcast messages like `WM_ENDSESSION` or `RegisterWindowMessageW(w!("TaskbarCreated"))`.
 
-        Self::with_details(class, None, WINDOW_STYLE(0), None, None, None, None)
+        Self::with_details(
+            class,
+            None,
+            WINDOW_STYLE(0),
+            None,
+            Some((POINT { x: 0, y: 0 }, SIZE { cx: 0, cy: 0 })),
+            None,
+            None,
+        )
     }
 
     pub fn with_details(
@@ -174,7 +213,7 @@ impl Window {
         //! `None` for `placement` uses `CW_USEDEFAULT` for all four values.
 
         // Pass window procedure via thread-local storage instead of `CREATESTRUCTW`, because `WM_GETMINMAXINFO` can be sent before `WM_NCCREATE`.
-        NEXT_WINDOW_USER_DATA_ON_INIT.set(class.window_procedure_ptr as _);
+        NEXT_WINDOW_USER_DATA_ON_INIT.set(class.wnd_proc_ptr as _);
 
         // Create window.
         let (pos, size) = placement.unwrap_or((
@@ -214,62 +253,30 @@ impl Window {
     pub fn hwnd(&self) -> HWND {
         self.hwnd
     }
+
+    pub fn is_valid(&self) -> bool {
+        //! Returns whether the associated `HWND` is still valid.
+        //!
+        //! It isn't valid anymore, if `DestroyWindow()` was called.
+
+        unsafe { IsWindow(self.hwnd) }.as_bool()
+    }
 }
 
 impl Drop for Window {
     fn drop(&mut self) {
+        // Calling it again when it was already called on the window is simply a no-op. This can regularly happen, when, e.g., `DefWindowProcW()` calls it on `WM_CLOSE`.
         let _ = unsafe { DestroyWindow(self.hwnd) };
     }
 }
 
-macro_rules! hiword {
-    ($param:ident) => {
-        ($param.0 >> 16 & 0xffff) as u16
-    };
-}
-
-macro_rules! loword {
-    ($param:ident) => {
-        ($param.0 & 0xffff) as u16
-    };
-}
-
-pub fn translate_command_msg(wparam: WPARAM, lparam: LPARAM) -> CommandMsg {
-    match hiword!(wparam) {
-        0 => CommandMsg::MenuItem {
-            id: loword!(wparam),
-        },
-        1 => CommandMsg::Accelerator {
-            id: loword!(wparam),
-        },
-        wparam_hiword => CommandMsg::ControlMsg {
-            msg_id: wparam_hiword,
-            control_id: loword!(wparam),
-            control_hwnd: HWND(lparam.0),
-        },
-    }
-}
-
-pub enum CommandMsg {
-    MenuItem {
-        id: u16,
-    },
-    Accelerator {
-        id: u16,
-    },
-    ControlMsg {
-        msg_id: u16,
-        control_id: u16,
-        control_hwnd: HWND,
-    },
-}
-
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows;
+    use super::{Window, WindowClass};
+    use crate::{foundation::LParamExt, win32_app::msg_loop, windows};
     use std::{cell::RefCell, rc::Rc};
     use windows::{
-        core::{HSTRING, PCWSTR},
+        core::{w, HSTRING, PCWSTR},
         Win32::{
             Foundation::{HWND, LRESULT, POINT, SIZE},
             UI::WindowsAndMessaging::{
@@ -279,15 +286,12 @@ mod tests {
         },
     };
 
-    use super::{Window, WindowClass};
-    use crate::win32_app::msg_loop;
-
     #[ignore]
     #[test]
     fn create_window() -> windows::core::Result<()> {
         let counter = Rc::new(RefCell::new(1));
 
-        let class = WindowClass::new(Box::new(|hwnd, msg_id, wparam, lparam| {
+        let class = WindowClass::new(|hwnd, msg_id, wparam, mut lparam| {
             println!("window msg received: {hwnd:?}, msg 0x{msg_id:04x}, {wparam:?}, {lparam:?}");
 
             match msg_id {
@@ -298,7 +302,7 @@ mod tests {
                         MessageBoxW(
                             HWND(0),
                             PCWSTR(HSTRING::from(format!("{counter:?}")).as_ptr()),
-                            PCWSTR::null(),
+                            w!("Message Box"),
                             MB_OK,
                         )
                     };
@@ -306,8 +310,7 @@ mod tests {
                     Some(LRESULT(0))
                 }
                 WM_GETMINMAXINFO => {
-                    //TODO: `.cast()`-Funktion für `LPARAM` hinzufügen.
-                    let min_max_info = unsafe { &mut *(lparam.0 as *mut MINMAXINFO) };
+                    let min_max_info = unsafe { lparam.cast_to_mut::<MINMAXINFO>() };
                     min_max_info.ptMaxTrackSize = POINT { x: 300, y: 300 };
 
                     Some(LRESULT(0))
@@ -318,7 +321,7 @@ mod tests {
                 }
                 _ => None,
             }
-        }))?;
+        })?;
 
         *counter.borrow_mut() += 1;
 

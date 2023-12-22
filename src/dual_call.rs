@@ -68,7 +68,11 @@ pub enum FirstCallExpectation<T> {
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::windows;
+    use super::{dual_call, FirstCallExpectation};
+    use crate::{
+        core::{HResultExt, ResultExt},
+        windows, ResGuard,
+    };
     use regex::Regex;
     use windows::{
         core::{w, PCWSTR, PWSTR},
@@ -95,12 +99,6 @@ mod tests {
                 TextServices::HKL,
             },
         },
-    };
-
-    use super::{dual_call, FirstCallExpectation};
-    use crate::{
-        error::{HResultExt, ResultExt},
-        ResGuard,
     };
 
     #[test]
