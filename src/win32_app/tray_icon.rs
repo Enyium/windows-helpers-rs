@@ -398,8 +398,8 @@ pub fn translate_window_msg(wparam: WPARAM, lparam: LPARAM) -> TrayIconMsg {
 }
 
 pub struct TrayIconMsg {
-    msg_id: u32,
-    icon_id: u16,
-    x: i16,
-    y: i16,
+    pub msg_id: u32,
+    pub icon_id: u16,
+    pub x: i16,
+    pub y: i16,
 }
