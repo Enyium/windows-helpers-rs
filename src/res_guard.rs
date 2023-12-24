@@ -1,7 +1,7 @@
 use crate::{windows, Null};
 use std::ops::Deref;
 
-//TODO: Rename to `HandleGuard`?
+//TODO: Rename to `HandleGuard`? Wouldn't harmonize with `PWSTR`.
 /// Holds a resource and a free-function (like a non-capturing closure) that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
@@ -36,28 +36,16 @@ impl<R: Copy> ResGuard<R> {
 
     pub fn with_mut_acquisition<A, T, E>(acquire: A, free: fn(R)) -> Result<Self, E>
     where
-        R: Default,
+        R: Null,
         A: FnOnce(&mut R) -> Result<T, E>,
     {
         //! For use with functions that provide the resource by means of an out-parameter.
 
-        Self::with_injected_mut_acquisition(R::default(), acquire, free)
-    }
-
-    fn with_injected_mut_acquisition<A, T, E>(
-        mut inited_resource: R,
-        acquire: A,
-        free: fn(R),
-    ) -> Result<Self, E>
-    where
-        A: FnOnce(&mut R) -> Result<T, E>,
-    {
-        //! Private shared function.
-
-        acquire(&mut inited_resource)?;
+        let mut resource = R::NULL;
+        acquire(&mut resource)?;
 
         Ok(Self {
-            resource: inited_resource,
+            resource,
             free_fn: free,
         })
     }
@@ -68,13 +56,13 @@ impl<R: Copy> ResGuard<R> {
         free_second: fn(R),
     ) -> Result<(Self, Self), E>
     where
-        R: Default,
+        R: Null,
         A: FnOnce(&mut R, &mut R) -> Result<T, E>,
     {
         //! For purpose, see [`Self::two_with_mut_acq_and_close_handle()`].
 
-        let mut first_resource = R::default();
-        let mut second_resource = R::default();
+        let mut first_resource = R::NULL;
+        let mut second_resource = R::NULL;
         acquire_both(&mut first_resource, &mut second_resource)?;
 
         Ok((
@@ -312,33 +300,36 @@ impl_with_acq_and_free_fn!(
     }
 );
 
-//TODO: Doesn't the `Null` trait now allow this to be like the other functions?
-#[cfg(any(
-    all(
-        feature = "windows_v0_48",
-        feature = "f_Win32_Foundation",
-        feature = "f_Win32_System_Memory"
-    ),
-    all(not(feature = "windows_v0_48"), feature = "f_Win32_Foundation"),
-))]
-impl ResGuard<windows::core::PWSTR> {
-    pub fn with_mut_pwstr_acq_and_local_free<A, T, E>(acquire: A) -> Result<Self, E>
-    where
-        A: FnOnce(&mut windows::core::PWSTR) -> Result<T, E>,
-    {
-        //! Useful for functions like `ConvertSidToStringSidW()` and `FormatMessageW()`, which allocate for you and are documented to require a call to `LocalFree()`.
-
-        Self::with_injected_mut_acquisition(windows::core::PWSTR::NULL, acquire, |pwstr| {
-            use windows::Win32::Foundation::HLOCAL;
-
-            #[cfg(feature = "windows_v0_48")]
-            let _ = unsafe { windows::Win32::System::Memory::LocalFree(HLOCAL(pwstr.0 as _)) };
-
-            #[cfg(not(feature = "windows_v0_48"))]
-            let _ = unsafe { windows::Win32::Foundation::LocalFree(HLOCAL(pwstr.0.cast())) };
-        })
+#[cfg(feature = "windows_v0_48")]
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Memory"))]
+impl_with_acq_and_free_fn!(
+    windows::core::PWSTR,
+    with_acq_and_local_free,
+    with_mut_acq_and_local_free,
+    |pwstr| {
+        let _ = unsafe {
+            windows::Win32::System::Memory::LocalFree(windows::Win32::Foundation::HLOCAL(
+                pwstr.0 as _,
+            ))
+        };
     }
-}
+);
+
+//. Useful for functions like `ConvertSidToStringSidW()` and `FormatMessageW()`, which allocate for you and are documented to require a call to `LocalFree()`.
+#[cfg(not(feature = "windows_v0_48"))]
+#[cfg(all(feature = "f_Win32_Foundation"))]
+impl_with_acq_and_free_fn!(
+    windows::core::PWSTR,
+    with_acq_and_local_free,
+    with_mut_acq_and_local_free,
+    |pwstr| {
+        let _ = unsafe {
+            windows::Win32::Foundation::LocalFree(windows::Win32::Foundation::HLOCAL(
+                pwstr.0.cast(),
+            ))
+        };
+    }
+);
 
 #[cfg(feature = "f_Win32_Foundation")]
 impl ResGuard<windows::Win32::Foundation::HANDLE> {

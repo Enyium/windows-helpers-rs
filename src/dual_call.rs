@@ -179,7 +179,7 @@ mod tests {
         )?;
 
         let string_sid = unsafe {
-            ResGuard::with_mut_pwstr_acq_and_local_free(|pwstr| {
+            ResGuard::<PWSTR>::with_mut_acq_and_local_free(|pwstr| {
                 ConvertSidToStringSidW(
                     (&*sid_and_attrs_buffer.as_ptr().cast::<SID_AND_ATTRIBUTES>()).Sid,
                     pwstr,
