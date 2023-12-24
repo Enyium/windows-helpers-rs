@@ -78,26 +78,27 @@ impl<R: Copy> ResGuard<R> {
     }
 }
 
-//TODO: Add methods like `with_res_and_destroy_icon()` to `ResGuard`. Replacement for code like this:
-//      self.h_icon = Some(ResGuard::new(h_icon, |h_icon| {
-//          let _ = DestroyIcon(h_icon);
-//      }));
-
 macro_rules! impl_with_acq_and_free_fn {
-    ($type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+    ($type:ty, $with_res:ident, $with_acq:ident, $with_acq_mut:ident, $free_fn:expr) => {
         impl ResGuard<$type> {
-            pub fn $acq<A, E>(acquire: A) -> Result<Self, E>
+            const FREE_FN: fn($type) = $free_fn;
+
+            pub fn $with_res(resource: $type) -> Self {
+                Self::new(resource, Self::FREE_FN)
+            }
+
+            pub fn $with_acq<A, E>(acquire: A) -> Result<Self, E>
             where
                 A: FnOnce() -> Result<$type, E>,
             {
-                Self::with_acquisition(acquire, $free_fn)
+                Self::with_acquisition(acquire, Self::FREE_FN)
             }
 
-            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<Self, E>
+            pub fn $with_acq_mut<A, T, E>(acquire: A) -> Result<Self, E>
             where
                 A: FnOnce(&mut $type) -> Result<T, E>,
             {
-                Self::with_mut_acquisition(acquire, $free_fn)
+                Self::with_mut_acquisition(acquire, Self::FREE_FN)
             }
         }
     };
@@ -106,6 +107,7 @@ macro_rules! impl_with_acq_and_free_fn {
 #[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HANDLE,
+    with_res_and_close_handle,
     with_acq_and_close_handle,
     with_mut_acq_and_close_handle,
     |handle| {
@@ -116,6 +118,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HBITMAP,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_bitmap| {
@@ -126,6 +129,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HBRUSH,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_brush| {
@@ -137,6 +141,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::CreatedHDC,
+    with_res_and_delete_dc,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
     |h_dc| {
@@ -148,6 +153,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HDC,
+    with_res_and_delete_dc,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
     |h_dc| {
@@ -158,6 +164,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HFONT,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_font| {
@@ -168,6 +175,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HGDIOBJ,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_gdi_obj| {
@@ -179,6 +187,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Memory"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HGLOBAL,
+    with_res_and_global_free,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
     |h_global| {
@@ -190,6 +199,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HGLOBAL,
+    with_res_and_global_free,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
     |h_global| {
@@ -203,6 +213,7 @@ impl_with_acq_and_free_fn!(
 ))]
 impl_with_acq_and_free_fn!(
     windows::Win32::UI::WindowsAndMessaging::HICON,
+    with_res_and_destroy_icon,
     with_acq_and_destroy_icon,
     with_mut_acq_and_destroy_icon,
     |h_icon| {
@@ -214,6 +225,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Memory"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HLOCAL,
+    with_res_and_local_free,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
     |h_local| {
@@ -225,6 +237,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HLOCAL,
+    with_res_and_local_free,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
     |h_local| {
@@ -238,6 +251,7 @@ impl_with_acq_and_free_fn!(
 ))]
 impl_with_acq_and_free_fn!(
     windows::Win32::UI::WindowsAndMessaging::HMENU,
+    with_res_and_destroy_menu,
     with_acq_and_destroy_menu,
     with_mut_acq_and_destroy_menu,
     |h_menu| {
@@ -252,6 +266,7 @@ impl_with_acq_and_free_fn!(
 ))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HMODULE,
+    with_res_and_free_library,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
     |h_module| {
@@ -263,6 +278,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Foundation::HMODULE,
+    with_res_and_free_library,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
     |h_module| {
@@ -273,6 +289,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HPALETTE,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_palette| {
@@ -283,6 +300,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HPEN,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_pen| {
@@ -293,6 +311,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HRGN,
+    with_res_and_delete_object,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
     |h_rgn| {
@@ -304,6 +323,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Memory"))]
 impl_with_acq_and_free_fn!(
     windows::core::PWSTR,
+    with_res_and_local_free,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
     |pwstr| {
@@ -320,6 +340,7 @@ impl_with_acq_and_free_fn!(
 #[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
     windows::core::PWSTR,
+    with_res_and_local_free,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
     |pwstr| {
@@ -333,9 +354,7 @@ impl_with_acq_and_free_fn!(
 
 #[cfg(feature = "f_Win32_Foundation")]
 impl ResGuard<windows::Win32::Foundation::HANDLE> {
-    const FREE_FN: fn(windows::Win32::Foundation::HANDLE) = |handle| {
-        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle) };
-    };
+    // (`FREE_FN` was already defined in previous impl with this type parameter.)
 
     pub fn two_with_mut_acq_and_close_handle<A, T, E>(acquire_both: A) -> Result<(Self, Self), E>
     where
