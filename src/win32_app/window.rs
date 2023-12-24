@@ -227,25 +227,22 @@ impl Window {
             },
         ));
 
-        let hwnd = Result::from_checked_or_win32(
-            unsafe {
-                CreateWindowExW(
-                    ex_style.unwrap_or(WINDOW_EX_STYLE(0)),
-                    PCWSTR(class.atom as _),
-                    text.unwrap_or(PCWSTR::NULL),
-                    style,
-                    pos.x,
-                    pos.y,
-                    size.cx,
-                    size.cy,
-                    parent.unwrap_or(HWND::NULL),
-                    menu.unwrap_or(HMENU::NULL),
-                    GetModuleHandleW(PCWSTR::NULL)?,
-                    None,
-                )
-            },
-            |hwnd| hwnd.0 != 0,
-        )?;
+        let hwnd = Result::from_nonnull_or_e_handle(unsafe {
+            CreateWindowExW(
+                ex_style.unwrap_or(WINDOW_EX_STYLE(0)),
+                PCWSTR(class.atom as _),
+                text.unwrap_or(PCWSTR::NULL),
+                style,
+                pos.x,
+                pos.y,
+                size.cx,
+                size.cy,
+                parent.unwrap_or(HWND::NULL),
+                menu.unwrap_or(HMENU::NULL),
+                GetModuleHandleW(PCWSTR::NULL)?,
+                None,
+            )
+        })?;
 
         Ok(Self { hwnd })
     }

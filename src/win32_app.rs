@@ -58,7 +58,7 @@ mod tests {
 
     struct App {
         tray_icon: TrayIcon,
-        _tray_h_icon: ResGuard<HICON, fn(HICON)>,
+        _tray_h_icon: ResGuard<HICON>,
     }
 
     impl App {

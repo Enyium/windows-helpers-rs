@@ -1,58 +1,45 @@
 use crate::{windows, Null};
 use std::ops::Deref;
 
-//TODO: Improve `ResGuard`, so the second type parameter in a struct field like this isn't necessary:
-//      h_icon: Option<ResGuard<HICON, fn(HICON)>>,
-
-//TODO: Add methods like `with_res_and_destroy_icon()` to `ResGuard`. Replacement for code like this:
-//      self.h_icon = Some(ResGuard::new(h_icon, |h_icon| {
-//          let _ = DestroyIcon(h_icon);
-//      }));
-
-/// Holds a resource and a free-closure that is called when the guard is dropped.
+//TODO: Rename to `HandleGuard`?
+/// Holds a resource and a free-function (like a non-capturing closure) that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.
 ///
-/// For functions ending in Windows API function names (differently cased), you have to activate crate features. First, see the repository's read-me. Then, derive the needed features from the Windows API function and the handle type associated with it.
-pub struct ResGuard<R, F>
-where
-    F: FnOnce(R),
-{
-    resource: Option<R>,
-    free_fn: Option<F>,
+/// For functions ending in Windows API function names (differently cased, like `..._destroy_icon()`), you have to activate crate features. First, see the repository's read-me. Then, derive the needed features from the Windows API function and the handle type the instance manages.
+pub struct ResGuard<R: Copy> {
+    resource: R,
+    free_fn: fn(R),
 }
 
-impl<R, F> ResGuard<R, F>
-where
-    F: FnOnce(R),
-{
-    pub fn new(resource: R, free: F) -> Self {
+impl<R: Copy> ResGuard<R> {
+    pub fn new(resource: R, free: fn(R)) -> Self {
         //! Should normally not be needed.
 
         Self {
-            resource: Some(resource),
-            free_fn: Some(free),
+            resource: resource,
+            free_fn: free,
         }
     }
 
-    pub fn with_acquisition<A, E>(acquire: A, free: F) -> Result<Self, E>
+    pub fn with_acquisition<A, E>(acquire: A, free: fn(R)) -> Result<Self, E>
     where
         A: FnOnce() -> Result<R, E>,
     {
-        //! For functions that return the resource.
+        //! For use with functions that return the resource.
 
         Ok(Self {
-            resource: Some(acquire()?),
-            free_fn: Some(free),
+            resource: acquire()?,
+            free_fn: free,
         })
     }
 
-    pub fn with_mut_acquisition<A, T, E>(acquire: A, free: F) -> Result<Self, E>
+    pub fn with_mut_acquisition<A, T, E>(acquire: A, free: fn(R)) -> Result<Self, E>
     where
-        A: FnOnce(&mut R) -> Result<T, E>,
         R: Default,
+        A: FnOnce(&mut R) -> Result<T, E>,
     {
-        //! For functions that provide the resource by means of an out-parameter.
+        //! For use with functions that provide the resource by means of an out-parameter.
 
         Self::with_injected_mut_acquisition(R::default(), acquire, free)
     }
@@ -60,27 +47,29 @@ where
     fn with_injected_mut_acquisition<A, T, E>(
         mut inited_resource: R,
         acquire: A,
-        free: F,
+        free: fn(R),
     ) -> Result<Self, E>
     where
         A: FnOnce(&mut R) -> Result<T, E>,
     {
+        //! Private shared function.
+
         acquire(&mut inited_resource)?;
 
         Ok(Self {
-            resource: Some(inited_resource),
-            free_fn: Some(free),
+            resource: inited_resource,
+            free_fn: free,
         })
     }
 
     pub fn two_with_mut_acquisition<A, T, E>(
         acquire_both: A,
-        free_first: F,
-        free_second: F,
+        free_first: fn(R),
+        free_second: fn(R),
     ) -> Result<(Self, Self), E>
     where
-        A: FnOnce(&mut R, &mut R) -> Result<T, E>,
         R: Default,
+        A: FnOnce(&mut R, &mut R) -> Result<T, E>,
     {
         //! For purpose, see [`Self::two_with_mut_acq_and_close_handle()`].
 
@@ -90,40 +79,35 @@ where
 
         Ok((
             Self {
-                resource: Some(first_resource),
-                free_fn: Some(free_first),
+                resource: first_resource,
+                free_fn: free_first,
             },
             Self {
-                resource: Some(second_resource),
-                free_fn: Some(free_second),
+                resource: second_resource,
+                free_fn: free_second,
             },
         ))
     }
 }
 
-//TODO: Implement handle transmutation myself to get rid of dependency on `CanInto` etc. See <https://github.com/microsoft/windows-rs/issues/2738> ("Can I continue to count on CanInto and friends?"). See also `error.rs`.
+//TODO: Add methods like `with_res_and_destroy_icon()` to `ResGuard`. Replacement for code like this:
+//      self.h_icon = Some(ResGuard::new(h_icon, |h_icon| {
+//          let _ = DestroyIcon(h_icon);
+//      }));
+
 macro_rules! impl_with_acq_and_free_fn {
-    ($($feature:literal), +, $type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
-        #[cfg(all(
-            $(feature = $feature,)+
-        ))]
-        impl<R> ResGuard<R, fn(R)>
-        where
-            R: windows::core::CanInto<$type>
-                + windows::core::TypeKind<TypeKind = windows::core::CopyType>
-                + Clone,
-        {
-            pub fn $acq<A, E>(acquire: A) -> Result<ResGuard<R, fn(R)>, E>
+    ($type:ty, $acq:ident, $acq_mut:ident, $free_fn:expr) => {
+        impl ResGuard<$type> {
+            pub fn $acq<A, E>(acquire: A) -> Result<Self, E>
             where
-                A: FnOnce() -> Result<R, E>,
+                A: FnOnce() -> Result<$type, E>,
             {
                 Self::with_acquisition(acquire, $free_fn)
             }
 
-            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<ResGuard<R, fn(R)>, E>
+            pub fn $acq_mut<A, T, E>(acquire: A) -> Result<Self, E>
             where
-                A: FnOnce(&mut R) -> Result<T, E>,
-                R: Default,
+                A: FnOnce(&mut $type) -> Result<T, E>,
             {
                 Self::with_mut_acquisition(acquire, $free_fn)
             }
@@ -131,146 +115,213 @@ macro_rules! impl_with_acq_and_free_fn {
     };
 }
 
+#[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
     windows::Win32::Foundation::HANDLE,
     with_acq_and_close_handle,
     with_mut_acq_and_close_handle,
-    |handle_compatible| {
-        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle_compatible) };
+    |handle| {
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle) };
+    }
+);
+
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
+impl_with_acq_and_free_fn!(
+    windows::Win32::Graphics::Gdi::HBITMAP,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_bitmap| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_bitmap) };
+    }
+);
+
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
+impl_with_acq_and_free_fn!(
+    windows::Win32::Graphics::Gdi::HBRUSH,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_brush| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_brush) };
     }
 );
 
 #[cfg(feature = "windows_v0_48")]
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::CreatedHDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
-    |h_dc_compatible| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc_compatible) };
+    |h_dc| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc) };
     }
 );
 
-#[cfg(feature = "windows_v0_52")]
+#[cfg(not(feature = "windows_v0_48"))]
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Graphics_Gdi",
     windows::Win32::Graphics::Gdi::HDC,
     with_acq_and_delete_dc,
     with_mut_acq_and_delete_dc,
-    |h_dc_compatible| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc_compatible) };
+    |h_dc| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteDC(h_dc) };
     }
 );
 
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Graphics_Gdi",
+    windows::Win32::Graphics::Gdi::HFONT,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_font| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_font) };
+    }
+);
+
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
+impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HGDIOBJ,
     with_acq_and_delete_object,
     with_mut_acq_and_delete_object,
-    |h_gdi_obj_compatible| {
-        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_gdi_obj_compatible) };
+    |h_gdi_obj| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_gdi_obj) };
     }
 );
 
 #[cfg(feature = "windows_v0_48")]
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Memory"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
-    "f_Win32_System_Memory",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
-    |h_global_compatible| {
-        let _ = unsafe { windows::Win32::System::Memory::GlobalFree(h_global_compatible) };
+    |h_global| {
+        let _ = unsafe { windows::Win32::System::Memory::GlobalFree(h_global) };
     }
 );
 
-#[cfg(feature = "windows_v0_52")]
+#[cfg(not(feature = "windows_v0_48"))]
+#[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
     windows::Win32::Foundation::HGLOBAL,
     with_acq_and_global_free,
     with_mut_acq_and_global_free,
-    |h_global_compatible| {
-        let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global_compatible) };
+    |h_global| {
+        let _ = unsafe { windows::Win32::Foundation::GlobalFree(h_global) };
     }
 );
 
+#[cfg(all(
+    feature = "f_Win32_Foundation",
+    feature = "f_Win32_UI_WindowsAndMessaging"
+))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_UI_WindowsAndMessaging",
     windows::Win32::UI::WindowsAndMessaging::HICON,
     with_acq_and_destroy_icon,
     with_mut_acq_and_destroy_icon,
-    |h_icon_compatible| {
-        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyIcon(h_icon_compatible) };
+    |h_icon| {
+        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyIcon(h_icon) };
     }
 );
 
 #[cfg(feature = "windows_v0_48")]
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Memory"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
-    "f_Win32_System_Memory",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
-    |h_local_compatible| {
-        let _ = unsafe { windows::Win32::System::Memory::LocalFree(h_local_compatible) };
+    |h_local| {
+        let _ = unsafe { windows::Win32::System::Memory::LocalFree(h_local) };
     }
 );
 
-#[cfg(feature = "windows_v0_52")]
+#[cfg(not(feature = "windows_v0_48"))]
+#[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
     windows::Win32::Foundation::HLOCAL,
     with_acq_and_local_free,
     with_mut_acq_and_local_free,
-    |h_local_compatible| {
-        let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local_compatible) };
+    |h_local| {
+        let _ = unsafe { windows::Win32::Foundation::LocalFree(h_local) };
     }
 );
 
+#[cfg(all(
+    feature = "f_Win32_Foundation",
+    feature = "f_Win32_UI_WindowsAndMessaging"
+))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_UI_WindowsAndMessaging",
     windows::Win32::UI::WindowsAndMessaging::HMENU,
     with_acq_and_destroy_menu,
     with_mut_acq_and_destroy_menu,
-    |h_menu_compatible| {
-        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyMenu(h_menu_compatible) };
+    |h_menu| {
+        let _ = unsafe { windows::Win32::UI::WindowsAndMessaging::DestroyMenu(h_menu) };
     }
 );
 
 #[cfg(feature = "windows_v0_48")]
+#[cfg(all(
+    feature = "f_Win32_Foundation",
+    feature = "f_Win32_System_LibraryLoader"
+))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
-    "f_Win32_System_LibraryLoader",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
-    |h_module_compatible| {
-        let _ = unsafe { windows::Win32::System::LibraryLoader::FreeLibrary(h_module_compatible) };
+    |h_module| {
+        let _ = unsafe { windows::Win32::System::LibraryLoader::FreeLibrary(h_module) };
     }
 );
 
-#[cfg(feature = "windows_v0_52")]
+#[cfg(not(feature = "windows_v0_48"))]
+#[cfg(all(feature = "f_Win32_Foundation"))]
 impl_with_acq_and_free_fn!(
-    "f_Win32_Foundation",
     windows::Win32::Foundation::HMODULE,
     with_acq_and_free_library,
     with_mut_acq_and_free_library,
-    |h_module_compatible| {
-        let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module_compatible) };
+    |h_module| {
+        let _ = unsafe { windows::Win32::Foundation::FreeLibrary(h_module) };
     }
 );
 
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
+impl_with_acq_and_free_fn!(
+    windows::Win32::Graphics::Gdi::HPALETTE,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_palette| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_palette) };
+    }
+);
+
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
+impl_with_acq_and_free_fn!(
+    windows::Win32::Graphics::Gdi::HPEN,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_pen| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_pen) };
+    }
+);
+
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
+impl_with_acq_and_free_fn!(
+    windows::Win32::Graphics::Gdi::HRGN,
+    with_acq_and_delete_object,
+    with_mut_acq_and_delete_object,
+    |h_rgn| {
+        unsafe { windows::Win32::Graphics::Gdi::DeleteObject(h_rgn) };
+    }
+);
+
+//TODO: Doesn't the `Null` trait now allow this to be like the other functions?
 #[cfg(any(
     all(
         feature = "windows_v0_48",
         feature = "f_Win32_Foundation",
         feature = "f_Win32_System_Memory"
     ),
-    all(feature = "windows_v0_52", feature = "f_Win32_Foundation"),
+    all(not(feature = "windows_v0_48"), feature = "f_Win32_Foundation"),
 ))]
-impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
+impl ResGuard<windows::core::PWSTR> {
     pub fn with_mut_pwstr_acq_and_local_free<A, T, E>(acquire: A) -> Result<Self, E>
     where
         A: FnOnce(&mut windows::core::PWSTR) -> Result<T, E>,
@@ -283,29 +334,24 @@ impl ResGuard<windows::core::PWSTR, fn(windows::core::PWSTR)> {
             #[cfg(feature = "windows_v0_48")]
             let _ = unsafe { windows::Win32::System::Memory::LocalFree(HLOCAL(pwstr.0 as _)) };
 
-            #[cfg(feature = "windows_v0_52")]
+            #[cfg(not(feature = "windows_v0_48"))]
             let _ = unsafe { windows::Win32::Foundation::LocalFree(HLOCAL(pwstr.0.cast())) };
         })
     }
 }
 
 #[cfg(feature = "f_Win32_Foundation")]
-impl<R> ResGuard<R, fn(R)>
-where
-    R: windows::core::CanInto<windows::Win32::Foundation::HANDLE>
-        + windows::core::TypeKind<TypeKind = windows::core::CopyType>
-        + Clone,
-{
-    const FREE_FN: fn(R) = |handle_compatible| {
-        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle_compatible) };
+impl ResGuard<windows::Win32::Foundation::HANDLE> {
+    const FREE_FN: fn(windows::Win32::Foundation::HANDLE) = |handle| {
+        let _ = unsafe { windows::Win32::Foundation::CloseHandle(handle) };
     };
 
-    pub fn two_with_mut_acq_and_close_handle<A, T, E>(
-        acquire_both: A,
-    ) -> Result<(ResGuard<R, fn(R)>, ResGuard<R, fn(R)>), E>
+    pub fn two_with_mut_acq_and_close_handle<A, T, E>(acquire_both: A) -> Result<(Self, Self), E>
     where
-        A: FnOnce(&mut R, &mut R) -> Result<T, E>,
-        R: Default,
+        A: FnOnce(
+            &mut windows::Win32::Foundation::HANDLE,
+            &mut windows::Win32::Foundation::HANDLE,
+        ) -> Result<T, E>,
     {
         //! For a function like `CreatePipe()` that returns two resources at once.
 
@@ -313,48 +359,37 @@ where
     }
 }
 
-impl<R, F> Deref for ResGuard<R, F>
-where
-    F: FnOnce(R),
-{
+impl<R: Copy> Deref for ResGuard<R> {
     type Target = R;
 
     fn deref(&self) -> &Self::Target {
-        self.resource.as_ref().unwrap()
+        &self.resource
     }
 }
 
-impl<R, F> Drop for ResGuard<R, F>
-where
-    F: FnOnce(R),
-{
+impl<R: Copy> Drop for ResGuard<R> {
     fn drop(&mut self) {
-        self.free_fn.take().unwrap()(self.resource.take().unwrap());
+        (self.free_fn)(self.resource);
     }
 }
 
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
-    use crate::{
-        core::ResultExt,
-        windows::{
-            self,
-            core::PCWSTR,
-            Win32::{
-                Foundation::{CloseHandle, COLORREF},
-                Graphics::Gdi::{CreateSolidBrush, GetObjectW, LOGBRUSH},
-                Storage::FileSystem::{ReadFile, WriteFile},
-                System::{
-                    Pipes::CreatePipe,
-                    Threading::{CreateEventW, SetEvent},
-                },
+    use super::ResGuard;
+    use crate::{core::ResultExt, windows, Null};
+    use std::{mem, ptr};
+    use windows::{
+        core::PCWSTR,
+        Win32::{
+            Foundation::{CloseHandle, COLORREF},
+            Graphics::Gdi::{CreateSolidBrush, GetObjectW, HBRUSH, LOGBRUSH},
+            Storage::FileSystem::{ReadFile, WriteFile},
+            System::{
+                Pipes::CreatePipe,
+                Threading::{CreateEventW, SetEvent},
             },
         },
-        Null,
     };
-    use std::{mem, ptr};
-
-    use super::ResGuard;
 
     #[test]
     fn new() {
@@ -413,11 +448,9 @@ mod tests {
 
         const BGR: u32 = 0x123456;
 
-        let h_brush = ResGuard::with_acq_and_delete_object(|| {
-            //TODO: Do this myself: See <https://github.com/microsoft/windows-rs/issues/2736> ("ok() function for handle types") and <https://github.com/microsoft/win32metadata/issues/1758> ("Functions in windows::Win32::Graphics::Gdi should return Result"). Provide `ok()` function by this crate, otherwise.
-            Result::from_checked_or_e_fail(unsafe { CreateSolidBrush(COLORREF(BGR)) }, |h_brush| {
-                !h_brush.is_invalid()
-            })
+        let h_brush = ResGuard::<HBRUSH>::with_acq_and_delete_object(|| {
+            //TODO: Turn this `ResultExt` functions and others around, so they're available on the types?
+            Result::from_nonnull_or_e_handle(unsafe { CreateSolidBrush(COLORREF(BGR)) })
         })?;
 
         let mut log_brush = LOGBRUSH::default();
