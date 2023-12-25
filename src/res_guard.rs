@@ -362,7 +362,9 @@ impl ResGuard<windows::Win32::Foundation::HANDLE> {
             &mut windows::Win32::Foundation::HANDLE,
         ) -> Result<T, E>,
     {
-        //! For a function like `CreatePipe()` that returns two resources at once.
+        //! For a function like [`CreatePipe()`][1] that returns two resources at once.
+        //!
+        //! [1]: https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-createpipe
 
         Self::two_with_mut_acquisition(acquire_both, Self::FREE_FN, Self::FREE_FN)
     }

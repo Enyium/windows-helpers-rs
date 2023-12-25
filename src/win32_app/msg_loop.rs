@@ -1,4 +1,6 @@
-//! Functions to run a blocking Win32 message loop with `GetMessageW()` etc. Necessary for window procedures, hook callbacks, timer callbacks and more.
+//! Functions to run a blocking Win32 message loop with [`GetMessageW()`][1] etc. Necessary for window procedures, hook callbacks, timer callbacks and more.
+//!
+//! [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessagew
 
 use crate::{core::ResultExt, windows, Null};
 use std::cell::Cell;
@@ -10,15 +12,19 @@ use windows::Win32::{
 };
 
 thread_local! {
-    /// The exit code set with [`quit_now()`]. Same data type as with `PostQuitMessage()`.
+    /// The exit code set with [`quit_now()`]. Same data type as with [`PostQuitMessage()`][1].
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
     static QUIT_NOW_EXIT_CODE: Cell<Option<i32>> = const { Cell::new(None) };
 }
 
 pub fn run() -> windows::core::Result<usize> {
     //! Runs a message loop, ignoring custom thread messages.
     //!
-    //! If successful, returns the exit code received via `WM_QUIT` from `PostQuitMessage()` that the process should return. If unsuccessful and you can handle the error, the function can be rerun in a loop.
-
+    //! If successful, returns the exit code received via [`WM_QUIT`][1] from [`PostQuitMessage()`][2] that the process should return. If unsuccessful and you can handle the error, the function can be rerun in a loop.
+    //!
+    //! [1]: https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-quit
+    //! [2]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
     loop {
         let msg = run_till_thread_msg()?;
         if msg.message == WM_QUIT {
@@ -30,8 +36,12 @@ pub fn run() -> windows::core::Result<usize> {
 pub fn run_till_thread_msg() -> windows::core::Result<MSG> {
     //! Runs a message loop until a thread message is received.
     //!
-    //! In most programs, the only thread message will be `WM_QUIT` (sent via `PostQuitMessage()`). But others are possible via `PostThreadMessageW()` and `PostMessageW()`.
-
+    //! In most programs, the only thread message will be [`WM_QUIT`][1] (sent via [`PostQuitMessage()`][1]). But others are possible via [`PostThreadMessageW()`][3] and [`PostMessageW()`][4].
+    //!
+    //! [1]: https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-quit
+    //! [2]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
+    //! [3]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postthreadmessagew
+    //! [4]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagew
     let mut msg = MSG::default();
 
     loop {

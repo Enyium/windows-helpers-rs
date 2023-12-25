@@ -52,9 +52,13 @@ impl<'a> WindowClass<'a> {
         //! - Without types: `hwnd, msg_id, wparam, lparam`
         //! - With types: `hwnd: HWND, msg_id: u32, wparam: WPARAM, lparam: LPARAM`
         //!
-        //! Return `None` from the procedure to cause `DefWindowProcW()` being called and its return value being used. You sometimes should also call it yourself when handling certain messages and returning `Some(...)`.
+        //! Return `None` from the procedure to cause [`DefWindowProcW()`][1] being called and its return value being used. You sometimes should also call it yourself when handling certain messages and returning `Some(...)`.
         //!
-        //! Note that some functions like, e.g., `DestroyWindow()` and `MoveWindow()` synchronously cause the window procedure to be called again during their calls. This means that closing over an `Rc<RefCell<...>>` and calling `borrow_mut()` to call your actual procedure implementation (can be a method with self parameter) will cause a borrowing panic. Using `Rc<ReentrantRefCell<...>>` instead solves this. See [`ReentrantRefCell`] for more information.
+        //! Note that some functions like, e.g., [`DestroyWindow()`][2] and [`MoveWindow()`][3] synchronously cause the window procedure to be called again during their calls. This means that closing over an [`Rc<RefCell<...>>`](std::cell::RefCell) and calling `borrow_mut()` to call your actual procedure implementation (can be a method with self parameter) will cause a borrowing panic. Using `Rc<ReentrantRefCell<...>>` instead solves this. See [`crate::ReentrantRefCell`] for more information.
+        //!
+        //! [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-defwindowprocw
+        //! [2]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroywindow
+        //! [3]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-movewindow
 
         Self::with_name(&Self::make_name()?, wnd_proc)
     }
@@ -258,7 +262,9 @@ impl Window {
     pub fn is_valid(&self) -> bool {
         //! Returns whether the associated `HWND` is still valid.
         //!
-        //! It isn't valid anymore, if `DestroyWindow()` was called.
+        //! It isn't valid anymore, if [`DestroyWindow()`][1] was called.
+        //!
+        //! [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-destroywindow
 
         unsafe { IsWindow(self.hwnd) }.as_bool()
     }

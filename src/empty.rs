@@ -1,7 +1,7 @@
 use crate::windows;
 use std::mem;
 
-/// For structs that benefit from an alternative to `default()` to be able to write more semantic code.
+/// For structs that benefit from an alternative to `default()` to be able to write more expressive code.
 pub trait Zeroed {
     fn zeroed() -> Self;
 }
@@ -16,6 +16,7 @@ macro_rules! impl_zeroed {
     };
 }
 
+/// For more expressive code and for use with trait bounds.
 pub trait Null {
     const NULL: Self;
     fn is_null(&self) -> bool;
@@ -33,6 +34,7 @@ macro_rules! impl_null {
     };
 }
 
+/// Just makes the `is_invalid()` method of handle types available via a trait for use with trait bounds.
 pub trait ValidateHandle {
     fn is_invalid(&self) -> bool;
 }

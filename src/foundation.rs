@@ -4,7 +4,7 @@ use crate::windows;
 use windows::Win32::Foundation::{E_FAIL, LPARAM};
 
 pub trait BoolExt {
-    /// Like `BOOL::ok()`, but returning an `Error` with `HRESULT` `E_FAIL` instead of calling `GetLastError()`.
+    /// Like [`BOOL::ok()`](windows::Win32::Foundation::BOOL::ok), but returning an `Error` with [`HRESULT`](windows::core::HRESULT) [`E_FAIL`](windows::Win32::Foundation::E_FAIL) instead of calling `GetLastError()`.
     fn ok_or_e_fail(self) -> windows::core::Result<()>;
 }
 

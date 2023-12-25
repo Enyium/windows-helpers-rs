@@ -18,7 +18,7 @@ pub trait ResultExt<T> {
     where
         F: FnOnce(&T) -> bool;
 
-    /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with `HRESULT` `E_FAIL`.
+    /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with [`HRESULT`](windows::core::HRESULT) [`E_FAIL`](windows::Win32::Foundation::E_FAIL).
     ///
     /// To be used with functions that don't offer an error code via `GetLastError()`.
     ///
@@ -77,7 +77,7 @@ where
     /// Passes a non-zero `self` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`].
     fn nonzero_or_win32_err(self) -> windows::core::Result<Self>;
 
-    /// Passes a non-zero `self` through to an `Ok` value, or, in case of it being zero, returns `Err` with `HRESULT` `E_FAIL`.
+    /// Passes a non-zero `self` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`HRESULT`](windows::core::HRESULT) [`E_FAIL`](windows::Win32::Foundation::E_FAIL).
     ///
     /// To be used with functions that don't offer an error code via `GetLastError()`.
     fn nonzero_or_e_fail(self) -> windows::core::Result<Self>;
@@ -121,7 +121,7 @@ pub trait CheckNullError
 where
     Self: Null + Sized,
 {
-    /// Passes a non-null `self` through to an `Ok` value, or, in case of it being null, returns `Err` with `HRESULT` `E_HANDLE`.
+    /// Passes a non-null `self` through to an `Ok` value, or, in case of it being null, returns `Err` with [`HRESULT`](windows::core::HRESULT) [`E_HANDLE`](windows::Win32::Foundation::E_HANDLE).
     ///
     /// To be used with functions like `CreateBitmap()` that return a handle type or null, not offering an error code via `GetLastError()`.
     fn nonnull_or_e_handle(self) -> windows::core::Result<Self>;
@@ -144,7 +144,7 @@ pub trait CheckHandleError
 where
     Self: ValidateHandle + Sized,
 {
-    /// Passes a `self`, if successfully validated with `is_invalid()`, through to an `Ok` value, or, in case of it being invalid, returns `Err` with `HRESULT` `E_HANDLE`.
+    /// Passes a `self`, if successfully validated with `is_invalid()`, through to an `Ok` value, or, in case of it being invalid, returns `Err` with [`HRESULT`](windows::core::HRESULT) [`E_HANDLE`](windows::Win32::Foundation::E_HANDLE).
     ///
     /// To be used with functions that don't offer an error code via `GetLastError()`, and when there's a need to validate with `is_invalid()`.
     fn valid_or_e_handle(self) -> windows::core::Result<Self>;
@@ -164,7 +164,9 @@ where
 }
 
 pub trait HResultExt {
-    /// Like `ok()`, but with success `HRESULT`s forwarded instead of giving `()`. Useful when working with functions that can return multiple success return values, like `AssocQueryStringW()`.
+    /// Like [`HRESULT::ok()`](windows::core::HRESULT), but with success `HRESULT`s forwarded instead of giving `()`. Useful when working with functions that can return multiple success return values, like [`AssocQueryStringW()`][1].
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-assocquerystringw
     fn ok_with_hresult(self) -> windows::core::Result<HRESULT>;
 }
 

@@ -134,7 +134,9 @@ impl TrayIcon {
     }
 
     pub fn rect(&self) -> windows::core::Result<RECT> {
-        //! Calls `Shell_NotifyIconGetRect()`.
+        //! Calls [`Shell_NotifyIconGetRect()`][1].
+        //!
+        //! [1]: https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shell_notifyicongetrect
 
         unsafe {
             Shell_NotifyIconGetRect(&NOTIFYICONIDENTIFIER {

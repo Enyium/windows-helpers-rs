@@ -5,7 +5,7 @@ use std::{
 
 /// A `RefCell` that allows to recursively retrieve a mutable reference.
 ///
-/// Like [`std::cell::RefCell`], but with an additional [`borrow_mut_reentrant()`] method. (If needed, the type could call through to more of `RefCell`s other methods.)
+/// Like [`std::cell::RefCell`], but with an additional [`Self::borrow_mut_reentrant()`] method. (If needed, the type could call through to more of `RefCell`s other methods.)
 pub struct ReentrantRefCell<T: ?Sized> {
     num_mut_re_borrows: Cell<usize>,
     // `RefCell` not implementing `Sync` will make the struct not implement it either.

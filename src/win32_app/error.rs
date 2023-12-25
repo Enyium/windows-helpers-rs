@@ -71,7 +71,9 @@ where
     F: FnOnce() -> Result<T, E>,
     E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
-    //! Calls [`set_app_error_if_absent()`] and `PostQuitMessage(1)` on `Err`. Returns the `Ok` value in `Some`.
+    //! Calls [`set_app_error_if_absent()`] and [`PostQuitMessage(1)`][1] on `Err`. Returns the `Ok` value in `Some`.
+    //!
+    //! [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
 
     let option = try_or_set_app_error(action);
     if option.is_none() {
@@ -85,7 +87,7 @@ where
     F: FnOnce() -> Result<T, E>,
     E: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
-    //! Calls [`set_app_error_if_absent()`] and [`msg_loop::quit_now(1)`] on `Err`. Returns the `Ok` value in `Some`.
+    //! Calls [`set_app_error_if_absent()`] and <code>[super::msg_loop::quit_now]\(1\)</code> on `Err`. Returns the `Ok` value in `Some`.
 
     let option = try_or_set_app_error(action);
     if option.is_none() {

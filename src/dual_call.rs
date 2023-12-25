@@ -56,13 +56,22 @@ where
 /// Defining the return value of the first call of [`dual_call()`] that is the precondition to continue with the second call.
 #[non_exhaustive]
 pub enum FirstCallExpectation<T> {
-    /// Useful with a function like `GetKeyboardLayoutList()`.
+    /// Useful with a function like [`GetKeyboardLayoutList()`][1].
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getkeyboardlayoutlist
     Ok,
-    /// Useful with a function like `AssocQueryStringW()`.
+
+    /// Useful with a function like [`AssocQueryStringW()`][1].
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-assocquerystringw
     OkValue(T),
+
     /// The most useful. Requires `ERROR_INSUFFICIENT_BUFFER` most often, if not documented.
     Win32Error(WIN32_ERROR),
-    /// Useful with a function like `AssocQueryStringW()` (in `ASSOCF_NOTRUNCATE` mode).
+
+    /// Useful with a function like [`AssocQueryStringW()`][1] (in `ASSOCF_NOTRUNCATE` mode).
+    ///
+    /// [1]: https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-assocquerystringw
     HResultError(HRESULT),
 }
 
