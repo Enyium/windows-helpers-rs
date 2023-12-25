@@ -27,7 +27,7 @@ mod tests {
     };
     use crate::{
         cell::ReentrantRefCell,
-        core::ResultExt,
+        core::CheckNumberError,
         win32_app::{
             msg_loop,
             tray_icon::{BalloonIcon, TrayIcon},
@@ -91,9 +91,10 @@ mod tests {
 
                     tray_icon.show(true)?;
 
-                    Result::from_nonzero_or_win32(unsafe {
+                    unsafe {
                         SetTimer(hwnd, Self::TIMER_ID, 1500 /*ms*/, None)
-                    })?;
+                    }
+                    .nonzero_or_win32_err()?;
 
                     Ok(Self {
                         tray_icon,

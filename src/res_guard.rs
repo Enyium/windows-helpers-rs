@@ -385,7 +385,10 @@ impl<R: Copy> Drop for ResGuard<R> {
 #[cfg(all(test, feature = "windows_latest_compatible_all"))]
 mod tests {
     use super::ResGuard;
-    use crate::{core::ResultExt, windows, Null};
+    use crate::{
+        core::{CheckNullError, CheckNumberError},
+        windows, Null,
+    };
     use std::{mem, ptr};
     use windows::{
         core::PCWSTR,
@@ -458,18 +461,18 @@ mod tests {
         const BGR: u32 = 0x123456;
 
         let h_brush = ResGuard::<HBRUSH>::with_acq_and_delete_object(|| {
-            //TODO: Turn this `ResultExt` functions and others around, so they're available on the types?
-            Result::from_nonnull_or_e_handle(unsafe { CreateSolidBrush(COLORREF(BGR)) })
+            unsafe { CreateSolidBrush(COLORREF(BGR)) }.nonnull_or_e_handle()
         })?;
 
         let mut log_brush = LOGBRUSH::default();
-        Result::from_nonzero_or_e_fail(unsafe {
+        unsafe {
             GetObjectW(
                 *h_brush,
                 mem::size_of::<LOGBRUSH>() as _,
                 Some(ptr::addr_of_mut!(log_brush).cast()),
             )
-        })?;
+        }
+        .nonzero_or_e_fail()?;
 
         assert_eq!(log_brush.lbColor.0, BGR);
 

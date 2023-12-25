@@ -1,4 +1,7 @@
-use crate::{core::ResultExt, windows, Null, Zeroed};
+use crate::{
+    core::{CheckNullError, CheckNumberError, ResultExt},
+    windows, Null, Zeroed,
+};
 use std::{cell::Cell, mem};
 use windows::{
     core::{HSTRING, PCWSTR},
@@ -84,7 +87,7 @@ impl<'a> WindowClass<'a> {
         wnd_class_ex.lpfnWndProc = Some(Self::base_wnd_proc);
 
         Ok(Self {
-            atom: Result::from_nonzero_or_win32(unsafe { RegisterClassExW(&wnd_class_ex) })?,
+            atom: unsafe { RegisterClassExW(&wnd_class_ex) }.nonzero_or_win32_err()?,
             // Double indirection to get thin pointer.
             wnd_proc_ptr: Box::into_raw(Box::new(Box::new(wnd_proc))),
         })
@@ -122,7 +125,7 @@ impl<'a> WindowClass<'a> {
 
             let result = Result::<(), windows::core::Error>::from_win32().and_then(|_| unsafe {
                 SetLastError(ERROR_SUCCESS);
-                Result::from_nonzero_and_win32(SetWindowLongPtrW(hwnd, GWLP_USERDATA, user_data))
+                SetWindowLongPtrW(hwnd, GWLP_USERDATA, user_data).nonzero_with_win32_or_err()
             });
 
             if result.is_err() {
@@ -227,7 +230,7 @@ impl Window {
             },
         ));
 
-        let hwnd = Result::from_nonnull_or_e_handle(unsafe {
+        let hwnd = unsafe {
             CreateWindowExW(
                 ex_style.unwrap_or(WINDOW_EX_STYLE(0)),
                 PCWSTR(class.atom as _),
@@ -242,7 +245,8 @@ impl Window {
                 GetModuleHandleW(PCWSTR::NULL)?,
                 None,
             )
-        })?;
+        }
+        .nonnull_or_e_handle()?;
 
         Ok(Self { hwnd })
     }

@@ -70,7 +70,7 @@ pub enum FirstCallExpectation<T> {
 mod tests {
     use super::{dual_call, FirstCallExpectation};
     use crate::{
-        core::{HResultExt, ResultExt},
+        core::{CheckNumberError, HResultExt},
         windows, Null, ResGuard,
     };
     use regex::Regex;
@@ -114,7 +114,7 @@ mod tests {
                 }))
             };
 
-            Result::from_nonzero_or_win32(num_ids)
+            num_ids.nonzero_or_win32_err()
         })?;
 
         assert!(num_ids >= 1 && num_ids <= 20 && ids.iter().all(|hkl| !hkl.is_invalid()));
