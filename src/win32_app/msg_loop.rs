@@ -25,6 +25,7 @@ pub fn run() -> windows::core::Result<usize> {
     //!
     //! [1]: https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-quit
     //! [2]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
+
     loop {
         let msg = run_till_thread_msg()?;
         if msg.message == WM_QUIT {
@@ -42,6 +43,7 @@ pub fn run_till_thread_msg() -> windows::core::Result<MSG> {
     //! [2]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postquitmessage
     //! [3]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postthreadmessagew
     //! [4]: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-postmessagew
+
     let mut msg = MSG::default();
 
     loop {
