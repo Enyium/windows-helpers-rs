@@ -131,6 +131,9 @@ impl_null_and_validate_handle!(windows::Win32::Globalization::HSAVEDUILANGUAGES)
 impl_null_and_validate_handle!(windows::Win32::Graphics::Gdi::HBITMAP);
 #[cfg(feature = "f_Win32_Graphics_Gdi")]
 impl_null_and_validate_handle!(windows::Win32::Graphics::Gdi::HBRUSH);
+#[cfg(feature = "windows_v0_48")]
+#[cfg(feature = "f_Win32_Graphics_Gdi")]
+impl_null_and_validate_handle!(windows::Win32::Graphics::Gdi::CreatedHDC);
 #[cfg(feature = "f_Win32_Graphics_Gdi")]
 impl_null_and_validate_handle!(windows::Win32::Graphics::Gdi::HDC);
 #[cfg(feature = "f_Win32_Graphics_Gdi")]

@@ -67,7 +67,7 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
 
 pub trait CheckNumberError
 where
-    Self: Sized,
+    Self: num_traits::Zero + Sized,
 {
     /// Passes a non-zero `self` through to an `Ok` value, or, in case of it being zero, returns `Err` with [`windows::core::Error::from_win32()`], if it yields an error code, or `Ok(0)` otherwise.
     ///
@@ -119,7 +119,7 @@ where
 
 pub trait CheckNullError
 where
-    Self: Sized,
+    Self: Null + Sized,
 {
     /// Passes a non-null `self` through to an `Ok` value, or, in case of it being null, returns `Err` with `HRESULT` `E_HANDLE`.
     ///
@@ -142,7 +142,7 @@ where
 
 pub trait CheckHandleError
 where
-    Self: Sized,
+    Self: ValidateHandle + Sized,
 {
     /// Passes a `self`, if successfully validated with `is_invalid()`, through to an `Ok` value, or, in case of it being invalid, returns `Err` with `HRESULT` `E_HANDLE`.
     ///
