@@ -1,4 +1,4 @@
-use crate::{windows, HandleLike, Null};
+use crate::{windows, Null, ValidateHandle};
 use windows::{
     core::HRESULT,
     Win32::Foundation::{E_FAIL, E_HANDLE},
@@ -42,7 +42,7 @@ pub trait ResultExt<T> {
     /// To be used with functions that don't offer an error code via `GetLastError()`, and when there's a need to validate with `is_invalid()`.
     fn from_valid_or_e_handle(t: T) -> windows::core::Result<T>
     where
-        T: HandleLike;
+        T: ValidateHandle;
 
     /// Passes a `T` through to an `Ok` value, if the check is successful, or otherwise returns `Err` with [`windows::core::Error::from_win32()`].
     ///
@@ -126,7 +126,7 @@ impl<T> ResultExt<T> for windows::core::Result<T> {
 
     fn from_valid_or_e_handle(t: T) -> windows::core::Result<T>
     where
-        T: HandleLike,
+        T: ValidateHandle,
     {
         if t.is_invalid() {
             Err(E_HANDLE.into())

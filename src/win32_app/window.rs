@@ -51,7 +51,7 @@ impl<'a> WindowClass<'a> {
         //!
         //! Return `None` from the procedure to cause `DefWindowProcW()` being called and its return value being used. You sometimes should also call it yourself when handling certain messages and returning `Some(...)`.
         //!
-        //! Note that some functions like `DestroyWindow()` and `TrackPopupMenu()` synchronously cause the window procedure to be called again during their calls. This means that closing over an `Rc<RefCell<...>>` and calling `borrow_mut()` to call your actual procedure implementation (can be a method with self parameter) will cause a borrowing panic. Using `Rc<ReentrantRefCell<...>>` instead solves this.
+        //! Note that some functions like, e.g., `DestroyWindow()` and `MoveWindow()` synchronously cause the window procedure to be called again during their calls. This means that closing over an `Rc<RefCell<...>>` and calling `borrow_mut()` to call your actual procedure implementation (can be a method with self parameter) will cause a borrowing panic. Using `Rc<ReentrantRefCell<...>>` instead solves this. See [`ReentrantRefCell`] for more information.
 
         Self::with_name(&Self::make_name()?, wnd_proc)
     }

@@ -1,7 +1,6 @@
 use crate::{windows, Null};
 use std::ops::Deref;
 
-//TODO: Rename to `HandleGuard`? Wouldn't harmonize with `PWSTR`.
 /// Holds a resource and a free-function (like a non-capturing closure) that is called when the guard is dropped.
 ///
 /// Allows to couple resource acquisition and freeing, while treating the guard as the contained resource and ensuring freeing will happen. When writing the code, it's also nice to transfer the documentation into everything that has to happen in one go without having to split it into upper and lower or here- and there-code. In a function, Rust's drop order should ensure that later aquired resources are freed first.

@@ -26,8 +26,8 @@ mod tests {
         AppLike, InvisibleWindowAppHelper,
     };
     use crate::{
+        cell::ReentrantRefCell,
         core::ResultExt,
-        util::ReentrantRefCell,
         win32_app::{
             msg_loop,
             tray_icon::{BalloonIcon, TrayIcon},
@@ -71,7 +71,7 @@ mod tests {
             InvisibleWindowAppHelper<'a>,
             Rc<ReentrantRefCell<Option<Self>>>,
         )> {
-            Ok(InvisibleWindowAppHelper::make_app()?)
+            Ok(unsafe { InvisibleWindowAppHelper::make_app()? })
         }
 
         fn startup_wnd_proc(
@@ -152,7 +152,7 @@ mod tests {
                         SimplifiedTrayIconMsg::Activated => {
                             try_or_quit_now(|| -> windows::core::Result<_> {
                                 self.tray_icon.delete()?;
-                                unsafe { DestroyWindow(hwnd) }
+                                self.reenter_wnd_proc(|_| unsafe { DestroyWindow(hwnd) })
                             });
                             Some(LRESULT(0))
                         }
