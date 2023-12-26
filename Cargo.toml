@@ -1,6 +1,6 @@
 [package]
 name = "windows-helpers"
-version = "0.4.1"
+version = "0.4.2"
 description = "Helpers for the windows crate"
 categories = ["development-tools::ffi", "rust-patterns"]
 keywords = ["windows"]
@@ -34,21 +34,42 @@ f_Win32_Graphics_Gdi = []
 f_Win32_System_LibraryLoader = []
 f_Win32_System_Memory = []
 f_Win32_System_Performance = []
+f_Win32_System_Power = []
 f_Win32_UI_Input_KeyboardAndMouse = []
 f_Win32_UI_Shell = []
 f_Win32_UI_WindowsAndMessaging = []
 
 # (For VS Code development, a feature encompassing all features for a `windows` crate version is activated in `/.vscode/settings.json`. Changing the version in it can change the errors shown.)
 
-windows_v0_48_all = ["windows_v0_48", "windows_v0_48_f_Win32_Foundation", "windows_v0_48_f_Win32_Graphics_Gdi", "windows_v0_48_f_Win32_System_LibraryLoader", "windows_v0_48_f_Win32_System_Memory", "windows_v0_48_f_Win32_UI_WindowsAndMessaging"]
+windows_v0_48_all = [
+    "windows_v0_48",
+    "windows_v0_48_f_Win32_Foundation",
+    "windows_v0_48_f_Win32_Graphics_Gdi",
+    "windows_v0_48_f_Win32_System_LibraryLoader",
+    "windows_v0_48_f_Win32_System_Memory",
+    "windows_v0_48_f_Win32_System_Power",
+    "windows_v0_48_f_Win32_UI_WindowsAndMessaging",
+]
 windows_v0_48 = ["dep:windows_v0_48"]
 windows_v0_48_f_Win32_Foundation = ["f_Win32_Foundation", "windows_v0_48/Win32_Foundation"]
 windows_v0_48_f_Win32_Graphics_Gdi = ["f_Win32_Graphics_Gdi", "windows_v0_48/Win32_Graphics_Gdi"]
 windows_v0_48_f_Win32_System_LibraryLoader = ["f_Win32_System_LibraryLoader", "windows_v0_48/Win32_System_LibraryLoader"]
 windows_v0_48_f_Win32_System_Memory = ["f_Win32_System_Memory", "windows_v0_48/Win32_System_Memory"]
+windows_v0_48_f_Win32_System_Power = ["f_Win32_System_Power", "windows_v0_48/Win32_System_Power"]
 windows_v0_48_f_Win32_UI_WindowsAndMessaging = ["f_Win32_UI_WindowsAndMessaging", "windows_v0_48/Win32_UI_WindowsAndMessaging"]
 
-windows_v0_52_all = ["windows_v0_52", "windows_v0_52_win32_app", "windows_v0_52_f_Win32_Foundation", "windows_v0_52_f_Win32_Graphics_Gdi", "windows_v0_52_f_Win32_UI_WindowsAndMessaging"]
+windows_v0_52_all = [
+    "windows_v0_52",
+    "windows_v0_52_win32_app",
+    "windows_v0_52_f_Win32_Foundation",
+    "windows_v0_52_f_Win32_Graphics_Gdi",
+    "windows_v0_52_f_Win32_System_LibraryLoader",
+    "windows_v0_52_f_Win32_System_Performance",
+    "windows_v0_52_f_Win32_System_Power",
+    "windows_v0_52_f_Win32_UI_Input_KeyboardAndMouse",
+    "windows_v0_52_f_Win32_UI_Shell",
+    "windows_v0_52_f_Win32_UI_WindowsAndMessaging",
+]
 windows_v0_52 = ["dep:windows_v0_52"]
 windows_v0_52_win32_app = [
     "win32_app",
@@ -64,6 +85,7 @@ windows_v0_52_f_Win32_Foundation = ["f_Win32_Foundation", "windows_v0_52/Win32_F
 windows_v0_52_f_Win32_Graphics_Gdi = ["f_Win32_Graphics_Gdi", "windows_v0_52/Win32_Graphics_Gdi"]
 windows_v0_52_f_Win32_System_LibraryLoader = ["f_Win32_System_LibraryLoader", "windows_v0_52/Win32_System_LibraryLoader"]
 windows_v0_52_f_Win32_System_Performance = ["f_Win32_System_Performance", "windows_v0_52/Win32_System_Performance"]
+windows_v0_52_f_Win32_System_Power = ["f_Win32_System_Power", "windows_v0_52/Win32_System_Power"]
 windows_v0_52_f_Win32_UI_Input_KeyboardAndMouse = ["f_Win32_UI_Input_KeyboardAndMouse", "windows_v0_52/Win32_UI_Input_KeyboardAndMouse"]
 windows_v0_52_f_Win32_UI_Shell = ["f_Win32_UI_Shell", "windows_v0_52/Win32_UI_Shell"]
 windows_v0_52_f_Win32_UI_WindowsAndMessaging = ["f_Win32_UI_WindowsAndMessaging", "windows_v0_52/Win32_UI_WindowsAndMessaging"]

@@ -119,6 +119,11 @@ where
     //! After running the action, returns the error from [`take_app_error()`], or, if not present, the action's `Result`.
     //!
     //! Can be used with fundamental actions including running the message loop. Even when the actions don't fail, there might still be an app error.
+    //!
+    //! # Usage with `anyhow`
+    //! [As of Dec. 2023][1], you can't just use the `?` operator to convert a returned error to an `anyhow::Error`. Use `.map_err(|e| anyhow!(e))?` instead of `?`.
+    //!
+    //! [1]: https://github.com/dtolnay/anyhow/issues/83
 
     let result = action();
     if let Some(error) = take_app_error() {

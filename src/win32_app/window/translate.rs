@@ -1,7 +1,10 @@
-use crate::{bit_manipulation::Width32BitPortion, windows, wnds_and_msging::TimerProcExt};
+use crate::{
+    bit_manipulation::Width32BitPortion, foundation::LParamExt, windows,
+    wnds_and_msging::TimerProcExt,
+};
 use windows::Win32::{
     Foundation::{HWND, LPARAM, WPARAM},
-    UI::WindowsAndMessaging::TIMERPROC,
+    UI::WindowsAndMessaging::{PBT_POWERSETTINGCHANGE, TIMERPROC},
 };
 
 pub fn translate_command_msg(wparam: WPARAM, lparam: LPARAM) -> CommandMsg {
@@ -31,6 +34,31 @@ pub enum CommandMsg {
         msg_id: u16,
         control_id: u16,
         control_hwnd: HWND,
+    },
+}
+
+/// Activate feature `windows_<version>_f_Win32_System_Power`.
+#[cfg(feature = "f_Win32_System_Power")]
+pub unsafe fn translate_power_broadcast_msg(wparam: WPARAM, lparam: &LPARAM) -> PowerBroadcastMsg {
+    if wparam.0 == PBT_POWERSETTINGCHANGE as _ {
+        PowerBroadcastMsg::PowerSettingChange {
+            setting: lparam.cast_to_ref(),
+        }
+    } else {
+        PowerBroadcastMsg::Other {
+            event: wparam.0 as _,
+        }
+    }
+}
+
+/// Activate feature `windows_<version>_f_Win32_System_Power`.
+#[cfg(feature = "f_Win32_System_Power")]
+pub enum PowerBroadcastMsg<'a> {
+    PowerSettingChange {
+        setting: &'a windows::Win32::System::Power::POWERBROADCAST_SETTING,
+    },
+    Other {
+        event: u32,
     },
 }
 

@@ -340,7 +340,7 @@ mod tests {
             Some((POINT { x: 100, y: 100 }, SIZE { cx: 500, cy: 500 })),
             Some(PCWSTR(HSTRING::from("Test Window").as_ptr())),
             None,
-        );
+        )?;
 
         *counter.borrow_mut() += 1;
 

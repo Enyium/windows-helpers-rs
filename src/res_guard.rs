@@ -307,6 +307,19 @@ impl_with_acq_and_free_fn!(
     }
 );
 
+#[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_System_Power"))]
+impl_with_acq_and_free_fn!(
+    windows::Win32::System::Power::HPOWERNOTIFY,
+    with_res_and_unregister_power_setting_notification,
+    with_acq_and_unregister_power_setting_notification,
+    with_mut_acq_and_unregister_power_setting_notification,
+    |h_power_notify| {
+        let _ = unsafe {
+            windows::Win32::System::Power::UnregisterPowerSettingNotification(h_power_notify)
+        };
+    }
+);
+
 #[cfg(all(feature = "f_Win32_Foundation", feature = "f_Win32_Graphics_Gdi"))]
 impl_with_acq_and_free_fn!(
     windows::Win32::Graphics::Gdi::HRGN,

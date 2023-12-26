@@ -1,6 +1,7 @@
 pub mod bit_manipulation;
 pub mod core;
 pub mod foundation;
+pub mod power;
 pub mod win32_app;
 pub mod wnds_and_msging;
 
