@@ -5,7 +5,7 @@ use std::{
 
 /// A `RefCell` that allows to recursively retrieve a mutable reference.
 ///
-/// Like [`std::cell::RefCell`], but with an additional [`Self::borrow_mut_reentrant()`] method. (If needed, the type could call through to more of `RefCell`s other methods.)
+/// Like [`std::cell::RefCell`], but with an additional [`Self::borrow_mut_reentrant()`] method. (If needed, the type could call through to more of `RefCell`'s other methods.)
 pub struct ReentrantRefCell<T: ?Sized> {
     num_mut_re_borrows: Cell<usize>,
     // `RefCell` not implementing `Sync` will make the struct not implement it either.
@@ -46,7 +46,7 @@ impl<T> ReentrantRefCell<T> {
         //! The function is useful when dealing with an FFI and foreign code calls into your callback with a [`ReentrantRefCell`] at hand, you then call an FFI function and, during this call, the foreign code calls into your callback again. This happens, e.g., with [window procedures][1] on Windows when calling functions like [`DestroyWindow()`][2] or [`MoveWindow()`][3] in the procedure itself.
         //!
         //! # Safety
-        //! You are responsible to only call reentrance causing functions (like FFI functions) as if they had a `&mut self` parameter and wouldn't cause a compiler error with that. I.e., you must, e.g., not borrow something mutably from the mutable reference you get, call the reentrance causing function and then continue to use the borrow from before. When used in the relevant cases, a helper function that simply demands a `&mut self` parameter and just calls through to the closure from its second parameter would trigger compiler errors.
+        //! You are responsible to only call reentrance causing functions (like FFI functions) as if they had a `&mut self` parameter and wouldn't cause a compiler error with that. I.e., you must, e.g., not borrow something mutably from the mutable reference you get, call the reentrance causing function and then continue to use the borrow from before. When used in the relevant cases, a helper function that simply demands a `&mut self` parameter and just calls through to the closure from its second parameter would desirably trigger compiler errors. It's unknown whether using such a helper function is necessary with regard to possible compiler optimizations when not using it.
         //!
         //! Searching for "sen" ("send"/"sent") on Windows API function doc pages seems to be a good way to check whether a function may synchronously call the window procedure.
         //!
