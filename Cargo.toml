@@ -18,6 +18,7 @@ features = ["windows_latest_compatible_all"]
 # New `windows` versions must be added or very old versions must be removed below in multiple spots, in `lib.rs`, in `/scripts/verify.ps1` and in `/.vscode/settings.json`.
 windows_v0_48 = { optional = true, package = "windows", version = "0.48.0", features = ["Win32_Foundation"] }  # Published on 2023-03-31.
 windows_v0_52 = { optional = true, package = "windows", version = "0.52.0", features = ["Win32_Foundation"] }  # Published on 2023-11-15.
+windows_v0_58 = { optional = true, package = "windows", version = "0.58.0", features = ["Win32_Foundation"] }  # Published on 2024-07-03.
 
 num-traits = "0.2.17"
 map-self = "0.1.0"
@@ -31,6 +32,7 @@ win32_app = []
 
 f_Win32_Foundation = []
 f_Win32_Graphics_Gdi = []
+f_Win32_Security = []
 f_Win32_System_LibraryLoader = []
 f_Win32_System_Memory = []
 f_Win32_System_Performance = []
@@ -90,12 +92,47 @@ windows_v0_52_f_Win32_UI_Input_KeyboardAndMouse = ["f_Win32_UI_Input_KeyboardAnd
 windows_v0_52_f_Win32_UI_Shell = ["f_Win32_UI_Shell", "windows_v0_52/Win32_UI_Shell"]
 windows_v0_52_f_Win32_UI_WindowsAndMessaging = ["f_Win32_UI_WindowsAndMessaging", "windows_v0_52/Win32_UI_WindowsAndMessaging"]
 
+windows_v0_58_all = [
+    "windows_v0_58",
+    "windows_v0_58_win32_app",
+    "windows_v0_58_f_Win32_Foundation",
+    "windows_v0_58_f_Win32_Graphics_Gdi",
+    "windows_v0_58_f_Win32_Security",
+    "windows_v0_58_f_Win32_System_LibraryLoader",
+    "windows_v0_58_f_Win32_System_Performance",
+    "windows_v0_58_f_Win32_System_Power",
+    "windows_v0_58_f_Win32_UI_Input_KeyboardAndMouse",
+    "windows_v0_58_f_Win32_UI_Shell",
+    "windows_v0_58_f_Win32_UI_WindowsAndMessaging",
+]
+windows_v0_58 = ["dep:windows_v0_58"]
+windows_v0_58_win32_app = [
+    "win32_app",
+    "windows_v0_58_f_Win32_Foundation",
+    "windows_v0_58_f_Win32_Graphics_Gdi",
+    "windows_v0_58_f_Win32_Security",
+    "windows_v0_58_f_Win32_System_LibraryLoader",
+    "windows_v0_58_f_Win32_System_Performance",
+    "windows_v0_58_f_Win32_UI_Input_KeyboardAndMouse",
+    "windows_v0_58_f_Win32_UI_Shell",
+    "windows_v0_58_f_Win32_UI_WindowsAndMessaging",
+]
+windows_v0_58_f_Win32_Foundation = ["f_Win32_Foundation", "windows_v0_58/Win32_Foundation"]
+windows_v0_58_f_Win32_Graphics_Gdi = ["f_Win32_Graphics_Gdi", "windows_v0_58/Win32_Graphics_Gdi"]
+windows_v0_58_f_Win32_Security = ["f_Win32_Security", "windows_v0_58/Win32_Security"]
+windows_v0_58_f_Win32_System_LibraryLoader = ["f_Win32_System_LibraryLoader", "windows_v0_58/Win32_System_LibraryLoader"]
+windows_v0_58_f_Win32_System_Performance = ["f_Win32_System_Performance", "windows_v0_58/Win32_System_Performance"]
+windows_v0_58_f_Win32_System_Power = ["f_Win32_System_Power", "windows_v0_58/Win32_System_Power"]
+windows_v0_58_f_Win32_UI_Input_KeyboardAndMouse = ["f_Win32_UI_Input_KeyboardAndMouse", "windows_v0_58/Win32_UI_Input_KeyboardAndMouse"]
+windows_v0_58_f_Win32_UI_Shell = ["f_Win32_UI_Shell", "windows_v0_58/Win32_UI_Shell"]
+windows_v0_58_f_Win32_UI_WindowsAndMessaging = ["f_Win32_UI_WindowsAndMessaging", "windows_v0_58/Win32_UI_WindowsAndMessaging"]
+
 # The latest compatible version should also be specified in the `dev-dependencies` section (in name and `version`).
-windows_latest_compatible_all = ["windows_v0_52_all"]
+windows_latest_compatible_all = ["windows_v0_58_all"]
 
 [dev-dependencies]
 # Additional `windows` features for test modules. Only tested with latest version established in this crate.
-windows_v0_52 = { package = "windows", version = "0.52.0", features = [
+windows_v0_58 = { package = "windows", version = "0.58.0", features = [
     "Win32_Foundation",
     "Win32_Security_Authorization",
     "Win32_Security",

@@ -22,7 +22,7 @@ use windows::{
                 NIIF_WARNING, NIM_ADD, NIM_DELETE, NIM_MODIFY, NIM_SETFOCUS, NIM_SETVERSION,
                 NINF_KEY, NIN_SELECT, NIS_HIDDEN, NOTIFYICONDATAW, NOTIFYICONDATAW_0,
                 NOTIFYICONIDENTIFIER, NOTIFYICON_VERSION_4, NOTIFY_ICON_DATA_FLAGS,
-                NOTIFY_ICON_INFOTIP_FLAGS,
+                NOTIFY_ICON_INFOTIP_FLAGS, NOTIFY_ICON_STATE,
             },
             WindowsAndMessaging::{HICON, WM_CONTEXTMENU},
         },
@@ -86,7 +86,16 @@ impl TrayIcon {
             hIcon: HICON::NULL,
             szTip: [0; 128],
             dwState: NIS_HIDDEN,
-            dwStateMask: NIS_HIDDEN.0,
+            dwStateMask: {
+                #[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
+                {
+                    NIS_HIDDEN.0
+                }
+                #[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+                {
+                    NIS_HIDDEN
+                }
+            },
             szInfo: [0; 256],
             Anonymous: NOTIFYICONDATAW_0 {
                 uVersion: NOTIFYICON_VERSION_4,
@@ -109,7 +118,16 @@ impl TrayIcon {
         };
 
         inst.readd()?;
-        inst.notify_icon_data.dwStateMask = 0;
+        inst.notify_icon_data.dwStateMask = {
+            #[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
+            {
+                0
+            }
+            #[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+            {
+                NOTIFY_ICON_STATE(0)
+            }
+        };
 
         Ok(inst)
     }
@@ -194,10 +212,28 @@ impl TrayIcon {
         } else {
             self.notify_icon_data.dwState.0 |= NIS_HIDDEN.0;
         }
-        self.notify_icon_data.dwStateMask = NIS_HIDDEN.0;
+        self.notify_icon_data.dwStateMask = {
+            #[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
+            {
+                NIS_HIDDEN.0
+            }
+            #[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+            {
+                NIS_HIDDEN
+            }
+        };
 
         let result = self.call_modify();
-        self.notify_icon_data.dwStateMask = 0;
+        self.notify_icon_data.dwStateMask = {
+            #[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
+            {
+                0
+            }
+            #[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+            {
+                NOTIFY_ICON_STATE(0)
+            }
+        };
 
         result
     }

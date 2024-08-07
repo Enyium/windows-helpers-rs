@@ -11,6 +11,12 @@ if (-not $?) { throw 'Failure' }
 cargo build --features windows_v0_52_all
 if (-not $?) { throw 'Failure' }
 
+Write-Host 'Building for `windows` v0.58...'
+cargo build --features windows_v0_58
+if (-not $?) { throw 'Failure' }
+cargo build --features windows_v0_58_all
+if (-not $?) { throw 'Failure' }
+
 # Test (same feature as on test modules).
 Write-Host 'Testing...'
 cargo test --features windows_latest_compatible_all

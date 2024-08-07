@@ -74,7 +74,7 @@ pub fn run_till_thread_msg() -> windows::core::Result<MSG> {
                 }
 
                 // Return thread message.
-                if msg.hwnd.0 == 0 {
+                if msg.hwnd.is_null() {
                     break Ok(msg);
                 }
             }

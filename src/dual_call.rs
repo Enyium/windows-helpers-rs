@@ -103,9 +103,8 @@ mod tests {
                 Threading::{GetCurrentProcess, OpenProcessToken},
             },
             UI::{
-                Input::KeyboardAndMouse::GetKeyboardLayoutList,
+                Input::KeyboardAndMouse::{GetKeyboardLayoutList, HKL},
                 Shell::{AssocQueryStringW, ASSOCF_NONE, ASSOCF_NOTRUNCATE, ASSOCSTR_EXECUTABLE},
-                TextServices::HKL,
             },
         },
     };

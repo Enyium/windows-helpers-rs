@@ -65,7 +65,8 @@ impl_null!(windows::core::PCWSTR);
 impl_null!(windows::core::PSTR);
 impl_null!(windows::core::PWSTR);
 
-// Types without an official (trait-less) `is_invalid()` method (as of Dec. 2023).
+// Types without an official (trait-less) `is_invalid()` method.
+#[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
 #[cfg(feature = "f_Win32_Foundation")]
 impl_null!(windows::Win32::Foundation::HWND);
 
@@ -121,6 +122,10 @@ impl_null_and_validate_handle!(windows::Win32::Foundation::HLOCAL);
 impl_null_and_validate_handle!(windows::Win32::Foundation::HMODULE);
 #[cfg(feature = "f_Win32_Foundation")]
 impl_null_and_validate_handle!(windows::Win32::Foundation::HRSRC);
+#[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+#[cfg(feature = "f_Win32_Foundation")]
+impl_null_and_validate_handle!(windows::Win32::Foundation::HWND);
+#[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
 #[cfg(feature = "f_Win32_Foundation")]
 impl_null_and_validate_handle!(windows::Win32::Foundation::PSID);
 #[cfg(feature = "f_Win32_Globalization")]
@@ -286,28 +291,37 @@ impl_null_and_validate_handle!(windows::Win32::Security::Cryptography::NCRYPT_KE
 impl_null_and_validate_handle!(windows::Win32::Security::Cryptography::NCRYPT_PROV_HANDLE);
 #[cfg(feature = "f_Win32_Security_Cryptography")]
 impl_null_and_validate_handle!(windows::Win32::Security::Cryptography::NCRYPT_SECRET_HANDLE);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::HDIAGNOSTIC_DATA_QUERY_SESSION);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::HDIAGNOSTIC_EVENT_CATEGORY_DESCRIPTION);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::HDIAGNOSTIC_EVENT_PRODUCER_DESCRIPTION);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::HDIAGNOSTIC_EVENT_TAG_DESCRIPTION);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::HDIAGNOSTIC_RECORD);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::HDIAGNOSTIC_REPORT);
+#[cfg(feature = "f_Win32_Security_DiagnosticDataQuery")]
+impl_null_and_validate_handle!(
+    windows::Win32::Security::DiagnosticDataQuery::HDIAGNOSTIC_DATA_QUERY_SESSION
+);
+#[cfg(feature = "f_Win32_Security_DiagnosticDataQuery")]
+impl_null_and_validate_handle!(
+    windows::Win32::Security::DiagnosticDataQuery::HDIAGNOSTIC_EVENT_CATEGORY_DESCRIPTION
+);
+#[cfg(feature = "f_Win32_Security_DiagnosticDataQuery")]
+impl_null_and_validate_handle!(
+    windows::Win32::Security::DiagnosticDataQuery::HDIAGNOSTIC_EVENT_PRODUCER_DESCRIPTION
+);
+#[cfg(feature = "f_Win32_Security_DiagnosticDataQuery")]
+impl_null_and_validate_handle!(
+    windows::Win32::Security::DiagnosticDataQuery::HDIAGNOSTIC_EVENT_TAG_DESCRIPTION
+);
+#[cfg(feature = "f_Win32_Security_DiagnosticDataQuery")]
+impl_null_and_validate_handle!(windows::Win32::Security::DiagnosticDataQuery::HDIAGNOSTIC_RECORD);
+#[cfg(feature = "f_Win32_Security_DiagnosticDataQuery")]
+impl_null_and_validate_handle!(windows::Win32::Security::DiagnosticDataQuery::HDIAGNOSTIC_REPORT);
 #[cfg(feature = "f_Win32_Security")]
 impl_null_and_validate_handle!(windows::Win32::Security::NCRYPT_DESCRIPTOR_HANDLE);
 #[cfg(feature = "f_Win32_Security")]
 impl_null_and_validate_handle!(windows::Win32::Security::NCRYPT_STREAM_HANDLE);
 #[cfg(feature = "f_Win32_Security")]
 impl_null_and_validate_handle!(windows::Win32::Security::PSECURITY_DESCRIPTOR);
+#[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+#[cfg(feature = "f_Win32_Security")]
+impl_null_and_validate_handle!(windows::Win32::Security::PSID);
 #[cfg(feature = "f_Win32_Security")]
 impl_null_and_validate_handle!(windows::Win32::Security::SAFER_LEVEL_HANDLE);
-#[cfg(feature = "f_Win32_Security")]
-impl_null_and_validate_handle!(windows::Win32::Security::SC_HANDLE);
 #[cfg(feature = "f_Win32_Storage_CloudFilters")]
 impl_null_and_validate_handle!(windows::Win32::Storage::CloudFilters::CF_CONNECTION_KEY);
 #[cfg(feature = "f_Win32_Storage_Compression")]
@@ -394,6 +408,8 @@ impl_null_and_validate_handle!(windows::Win32::System::Power::HPOWERNOTIFY);
 impl_null_and_validate_handle!(windows::Win32::System::Registry::HKEY);
 #[cfg(feature = "f_Win32_System_Search")]
 impl_null_and_validate_handle!(windows::Win32::System::Search::HACCESSOR);
+#[cfg(feature = "f_Win32_System_Services")]
+impl_null_and_validate_handle!(windows::Win32::System::Services::SC_HANDLE);
 #[cfg(feature = "f_Win32_System_Services")]
 impl_null_and_validate_handle!(windows::Win32::System::Services::SERVICE_STATUS_HANDLE);
 #[cfg(feature = "f_Win32_System_StationsAndDesktops")]

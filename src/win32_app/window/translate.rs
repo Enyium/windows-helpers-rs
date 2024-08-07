@@ -18,7 +18,7 @@ pub fn translate_command_msg(wparam: WPARAM, lparam: LPARAM) -> CommandMsg {
         wparam_high_u16 => CommandMsg::ControlMsg {
             msg_id: wparam_high_u16,
             control_id: wparam.low_u16(),
-            control_hwnd: HWND(lparam.0),
+            control_hwnd: HWND(lparam.0 as _),
         },
     }
 }

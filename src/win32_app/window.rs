@@ -249,8 +249,11 @@ impl Window {
                 GetModuleHandleW(PCWSTR::NULL)?,
                 None,
             )
-        }
-        .nonnull_or_e_handle()?;
+        };
+        #[cfg(any(feature = "windows_v0_48", feature = "windows_v0_52"))]
+        let hwnd = hwnd.nonnull_or_e_handle()?; // Checking `GetLastError()` would be better.
+        #[cfg(not(any(feature = "windows_v0_48", feature = "windows_v0_52")))]
+        let hwnd = hwnd?;
 
         Ok(Self { hwnd })
     }
