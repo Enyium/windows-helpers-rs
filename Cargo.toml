@@ -1,6 +1,6 @@
 [package]
 name = "windows-helpers"
-version = "0.4.2"
+version = "0.4.3"
 description = "Helpers for the windows crate"
 categories = ["development-tools::ffi", "rust-patterns"]
 keywords = ["windows", "utils"]
